@@ -349,11 +349,11 @@ watch(
       </div>
 
       <!-- Time Display and Controls -->
-      <div class="flex items-center gap-4">
+      <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
         <!-- Play/Pause Button -->
         <button
           @click="togglePlayPause"
-          class="p-2 rounded hover:bg-gray-800 transition-colors"
+          class="p-2 rounded hover:bg-gray-800 transition-colors flex-shrink-0 w-fit"
           :aria-label="isPlaying ? 'Pause' : 'Play'"
         >
           <svg v-if="isPlaying" class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -365,13 +365,13 @@ watch(
         </button>
 
         <!-- Time Display -->
-        <div class="flex-1 text-white text-sm font-mono">
+        <div class="text-white text-xs md:text-sm font-mono flex-shrink-0 md:flex-1">
           {{ formattedCurrentTime }} / {{ formattedDuration }}
         </div>
 
         <!-- Copy Timestamp Controls -->
-        <div class="flex items-center gap-3">
-          <label class="flex items-center text-sm text-gray-300 gap-2">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <label class="flex items-center text-xs md:text-sm text-gray-300 gap-2 flex-shrink-0">
             <input
               type="checkbox"
               v-model="attachTimestamp"
@@ -382,7 +382,7 @@ watch(
 
           <button
             @click="copyTimestampLink"
-            class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors flex items-center gap-2"
+            class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm rounded transition-colors flex items-center gap-2 w-full sm:w-auto justify-center"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
