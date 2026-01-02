@@ -34,6 +34,9 @@ const isFullscreen = ref(false)
 const overlayVisible = ref(false)
 const overlayTimer = ref(null)
 const OVERLAY_TIMEOUT = 3000
+const clickTimer = ref(null)
+const SINGLE_CLICK_DELAY = 250
+const pendingClickWasPlaying = ref(null)
 
 const progressPercent = computed(() => {
   return duration.value ? (currentTime.value / duration.value) * 100 : 0
@@ -59,20 +62,60 @@ const pause = () => {
   videoElement.value?.pause()
 }
 
-const togglePlayPause = () => {
+const togglePlayPause = (e) => {
+  // If called without an event (programmatic), act immediately
+  if (!e) {
+    isPlaying.value ? pause() : play()
+    return
+  }
+
+  // If this is the second click of a double-click, cancel the pending
+  // single-click action and do nothing (double-click handler will run).
+  if (e.detail === 2) {
+    if (clickTimer.value) {
+      clearTimeout(clickTimer.value)
+      clickTimer.value = null
+    }
+    return
+  }
+
+  pendingClickWasPlaying.value = isPlaying.value
   isPlaying.value ? pause() : play()
+
+  if (clickTimer.value) {
+    clearTimeout(clickTimer.value)
+    clickTimer.value = null
+  }
+
+  clickTimer.value = setTimeout(() => {
+    clickTimer.value = null
+  }, SINGLE_CLICK_DELAY)
 }
 
 const seekTo = (time) => {
   if (videoElement.value) {
+    const wasPlaying = !videoElement.value.paused
     videoElement.value.currentTime = time
+    // Resume playback if it was playing before the seek
+    if (wasPlaying) {
+      videoElement.value.play().catch(() => {
+        // Ignore autoplay errors
+      })
+    }
   }
 }
 
 const handleProgressClick = (e) => {
   const rect = e.currentTarget.getBoundingClientRect()
   const percent = (e.clientX - rect.left) / rect.width
+  const wasPlaying = !videoElement.value.paused
   seekTo(percent * duration.value)
+  // Ensure video continues playing if it was before
+  if (wasPlaying) {
+    videoElement.value.play().catch(() => {
+      // Ignore autoplay errors
+    })
+  }
 }
 
 const copyTimestampLink = () => {
@@ -197,6 +240,30 @@ const onPlayStateChange = () => {
   isPlaying.value = !videoElement.value?.paused
 }
 
+const SEEK_STEP = 5 // seconds
+
+const handleVideoDoubleClick = (e) => {
+  if (!videoElement.value) return
+  const wasPlaying = pendingClickWasPlaying.value
+  const rect = videoElement.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const isLeftHalf = x < rect.width / 2
+
+  if (isLeftHalf) {
+    // Seek backward 10 seconds
+    seekTo(Math.max(0, currentTime.value - SEEK_STEP))
+  } else {
+    // Seek forward 10 seconds
+    seekTo(Math.min(duration.value, currentTime.value + SEEK_STEP))
+  }
+  // Resume playback if it was playing before the seek
+  if (wasPlaying) {
+    videoElement.value.play().catch(() => {
+      // Ignore autoplay errors
+    })
+  }
+}
+
 // Handle URL hash for timestamp seeking
 const handleHashChange = () => {
   const hash = window.location.hash
@@ -230,6 +297,10 @@ onMounted(async () => {
     if (overlayTimer.value) {
       clearTimeout(overlayTimer.value)
       overlayTimer.value = null
+    }
+    if (clickTimer.value) {
+      clearTimeout(clickTimer.value)
+      clickTimer.value = null
     }
   }
 })
@@ -267,15 +338,30 @@ watch(
     >
       <video
         ref="videoElement"
-        class="w-full h-full touch-none"
+        class="w-full h-full touch-none cursor-pointer"
         @loadedmetadata="onLoadedMetadata"
         @timeupdate="onTimeUpdate"
         @play="onPlayStateChange"
         @pause="onPlayStateChange"
+        @click="togglePlayPause"
+        @dblclick="handleVideoDoubleClick"
       >
         <source v-if="videoUrl" :src="videoUrl" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
+
+      <!-- Mobile tap zones for seek prev/next (left/right sides) -->
+      <div class="absolute inset-0 flex pointer-events-none md:hidden">
+        <div
+          class="w-1/3 cursor-pointer pointer-events-auto"
+          @click="seekTo(Math.max(0, currentTime - SEEK_STEP))"
+        ></div>
+        <div class="w-1/3 pointer-events-none"></div>
+        <div
+          class="w-1/3 cursor-pointer pointer-events-auto"
+          @click="seekTo(Math.min(duration, currentTime + SEEK_STEP))"
+        ></div>
+      </div>
 
       <!-- Fullscreen overlay (shows on hover) -->
       <div v-show="overlayVisible" class="absolute inset-0 pointer-events-none">
@@ -287,7 +373,7 @@ watch(
             >
               <!-- Play/Pause -->
               <button
-                @click="togglePlayPause"
+                @click="togglePlayPause()"
                 class="p-2 rounded bg-black/30 text-white flex-shrink-0"
               >
                 <svg v-if="isPlaying" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -339,7 +425,7 @@ watch(
     </div>
 
     <!-- Controls -->
-    <div class="bg-gray-900 p-4 space-y-3">
+    <div v-show="!isFullscreen" class="bg-gray-900 p-4 space-y-3">
       <!-- Progress Bar -->
       <div
         class="h-1 bg-gray-700 rounded cursor-pointer hover:h-2 transition-all group"
@@ -352,7 +438,7 @@ watch(
       <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
         <!-- Play/Pause Button -->
         <button
-          @click="togglePlayPause"
+          @click="togglePlayPause()"
           class="p-2 rounded hover:bg-gray-800 transition-colors flex-shrink-0 w-fit"
           :aria-label="isPlaying ? 'Pause' : 'Play'"
         >
