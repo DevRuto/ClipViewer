@@ -8,6 +8,7 @@ const props = defineProps({
 const emit = defineEmits(['video-loaded', 'timestamp-copied'])
 
 const videoElement = ref(null)
+const wrapperRef = ref(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
@@ -28,6 +29,11 @@ const videoUrl = computed(() => {
 
 const formattedCurrentTime = computed(() => formatTime(currentTime.value))
 const formattedDuration = computed(() => formatTime(duration.value))
+
+const isFullscreen = ref(false)
+const overlayVisible = ref(false)
+const overlayTimer = ref(null)
+const OVERLAY_TIMEOUT = 3000
 
 const progressPercent = computed(() => {
   return duration.value ? (currentTime.value / duration.value) * 100 : 0
@@ -98,6 +104,78 @@ const onLoadedMetadata = async () => {
   })
 }
 
+const toggleFullscreen = async () => {
+  const el = wrapperRef.value || videoElement.value || document.documentElement
+  try {
+    if (!isFullscreen.value) {
+      if (el.requestFullscreen) await el.requestFullscreen()
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
+      else if (el.mozRequestFullScreen) el.mozRequestFullScreen()
+    } else {
+      if (document.exitFullscreen) await document.exitFullscreen()
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen()
+      else if (document.mozCancelFullScreen) document.mozCancelFullScreen()
+    }
+  } catch (e) {
+    console.warn('Fullscreen toggle failed', e)
+  }
+}
+
+const onFullScreenChange = () => {
+  isFullscreen.value = !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement
+  )
+  if (isFullscreen.value) {
+    // show overlay briefly when entering fullscreen
+    overlayVisible.value = true
+    startOverlayTimer()
+  } else {
+    overlayVisible.value = false
+    clearOverlayTimer()
+  }
+}
+
+const startOverlayTimer = () => {
+  if (overlayTimer.value) clearTimeout(overlayTimer.value)
+  overlayTimer.value = setTimeout(() => {
+    overlayVisible.value = false
+    overlayTimer.value = null
+  }, OVERLAY_TIMEOUT)
+}
+
+const clearOverlayTimer = () => {
+  if (overlayTimer.value) {
+    clearTimeout(overlayTimer.value)
+    overlayTimer.value = null
+  }
+}
+
+const showOverlay = () => {
+  overlayVisible.value = true
+  startOverlayTimer()
+}
+
+const hideOverlay = () => {
+  overlayVisible.value = false
+  clearOverlayTimer()
+}
+
+const onMouseMove = () => {
+  // when in fullscreen, any mouse movement should reveal overlay briefly
+  if (isFullscreen.value) {
+    overlayVisible.value = true
+    startOverlayTimer()
+    return
+  }
+
+  // when not fullscreen, reset hide timer if overlay is already visible
+  if (overlayVisible.value) {
+    startOverlayTimer()
+  }
+}
+
 const fetchFileSize = async () => {
   console.log('Fetching file size for', videoUrl.value)
   try {
@@ -140,9 +218,19 @@ onMounted(async () => {
 
   window.addEventListener('hashchange', handleHashChange)
   handleHashChange()
-
+  // fullscreen change listener
+  document.addEventListener('fullscreenchange', onFullScreenChange)
+  document.addEventListener('webkitfullscreenchange', onFullScreenChange)
+  document.addEventListener('mozfullscreenchange', onFullScreenChange)
   return () => {
     window.removeEventListener('hashchange', handleHashChange)
+    document.removeEventListener('fullscreenchange', onFullScreenChange)
+    document.removeEventListener('webkitfullscreenchange', onFullScreenChange)
+    document.removeEventListener('mozfullscreenchange', onFullScreenChange)
+    if (overlayTimer.value) {
+      clearTimeout(overlayTimer.value)
+      overlayTimer.value = null
+    }
   }
 })
 
@@ -169,12 +257,17 @@ watch(
 </script>
 
 <template>
-  <div class="w-full bg-black rounded-lg overflow-hidden">
+  <div ref="wrapperRef" class="w-full bg-black rounded-lg overflow-hidden relative">
     <!-- Video Container -->
-    <div class="relative bg-black aspect-video flex items-center justify-center">
+    <div
+      class="relative bg-black aspect-video flex items-center justify-center"
+      @mouseenter="showOverlay"
+      @mouseleave="hideOverlay"
+      @mousemove="onMouseMove"
+    >
       <video
         ref="videoElement"
-        class="w-full h-full"
+        class="w-full h-full touch-none"
         @loadedmetadata="onLoadedMetadata"
         @timeupdate="onTimeUpdate"
         @play="onPlayStateChange"
@@ -183,6 +276,66 @@ watch(
         <source v-if="videoUrl" :src="videoUrl" type="video/mp4" />
         Your browser does not support the video tag.
       </video>
+
+      <!-- Fullscreen overlay (shows on hover) -->
+      <div v-show="overlayVisible" class="absolute inset-0 pointer-events-none">
+        <div class="absolute left-0 right-0 bottom-0 p-3 pointer-events-auto">
+          <!-- Interactive controls: always show play/pause, progress, time on hover -->
+          <div v-show="isFullscreen" class="w-full flex justify-center">
+            <div
+              class="bg-black/60 rounded-lg p-2 md:p-3 flex items-center gap-3 w-full max-w-2xl px-4"
+            >
+              <!-- Play/Pause -->
+              <button
+                @click="togglePlayPause"
+                class="p-2 rounded bg-black/30 text-white flex-shrink-0"
+              >
+                <svg v-if="isPlaying" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                </svg>
+                <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
+
+              <!-- Progress bar (click to seek) -->
+              <div class="flex-1 min-w-0">
+                <div
+                  class="h-2 bg-gray-700 rounded cursor-pointer"
+                  @click.stop="handleProgressClick"
+                >
+                  <div
+                    class="h-full bg-red-600 rounded"
+                    :style="{ width: progressPercent + '%' }"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Time display -->
+              <div class="text-white text-sm font-mono whitespace-nowrap flex-shrink-0">
+                {{ formattedCurrentTime }} / {{ formattedDuration }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom-right fullscreen button (next to interactive controls) -->
+          <div class="absolute right-3 bottom-3 pointer-events-auto">
+            <button
+              @click.prevent="toggleFullscreen"
+              class="p-2 rounded bg-black/60 text-white hover:bg-black/70"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 3H5a2 2 0 00-2 2v3m0 8v3a2 2 0 002 2h3m8-16h3a2 2 0 012 2v3M16 21h3a2 2 0 002-2v-3"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Controls -->
