@@ -1,17 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 
 const route = useRoute()
-const router = useRouter()
 const playerRef = ref(null)
 
 const videoId = computed(() => route.params.videoId)
-
-const goHome = () => {
-  router.push('/')
-}
 
 const metadata = ref({
   width: 0,
@@ -50,12 +45,6 @@ const formatDuration = (seconds) => {
     <header class="bg-gray-900 border-b border-gray-800 py-4">
       <div class="max-w-4xl mx-auto px-4 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-white">ClipViewer</h1>
-        <button
-          @click="goHome"
-          class="px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 rounded transition-colors"
-        >
-          ← Back
-        </button>
       </div>
     </header>
 
@@ -107,7 +96,7 @@ const formatDuration = (seconds) => {
                 rel="noopener"
                 class="text-blue-400 hover:underline text-sm break-all"
               >
-                share.ruto.sh/u/{{ videoId }}.mp4
+                https://share.ruto.sh/u/{{ videoId }}.mp4
               </a>
             </div>
           </div>
