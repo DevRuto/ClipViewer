@@ -394,13 +394,15 @@ watch(
     <!-- Video Container -->
     <div
       class="relative bg-black aspect-video flex items-center justify-center"
+      :class="{ 'w-full h-full': isFullscreen }"
       @mouseenter="showOverlay"
       @mouseleave="hideOverlay"
       @mousemove="onMouseMove"
     >
       <video
         ref="videoElement"
-        class="w-full h-full touch-none cursor-pointer"
+        class="w-full h-full touch-none cursor-pointer object-contain"
+        :class="{ 'object-cover': isFullscreen }"
         @loadedmetadata="onLoadedMetadata"
         @timeupdate="onTimeUpdate"
         @play="onPlayStateChange"
