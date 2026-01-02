@@ -357,7 +357,7 @@ watch(
           @click="togglePlayPause"
           @dblclick="seekTo(Math.max(0, currentTime - SEEK_STEP))"
         ></div>
-        <div class="w-1/3 pointer-events-none" @click="togglePlayPause"></div>
+        <div class="w-1/3 pointer-events-none"></div>
         <div
           class="w-1/3 cursor-pointer pointer-events-auto"
           @click="togglePlayPause"
