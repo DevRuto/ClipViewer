@@ -350,21 +350,6 @@ watch(
         Your browser does not support the video tag.
       </video>
 
-      <!-- Mobile tap zones for seek prev/next (left/right sides) -->
-      <div class="absolute inset-0 flex pointer-events-none md:hidden">
-        <div
-          class="w-1/3 cursor-pointer pointer-events-auto"
-          @click="togglePlayPause"
-          @dblclick="seekTo(Math.max(0, currentTime - SEEK_STEP))"
-        ></div>
-        <div class="w-1/3 pointer-events-none"></div>
-        <div
-          class="w-1/3 cursor-pointer pointer-events-auto"
-          @click="togglePlayPause"
-          @dblclick="seekTo(Math.min(duration, currentTime + SEEK_STEP))"
-        ></div>
-      </div>
-
       <!-- Fullscreen overlay (shows on hover) -->
       <div v-show="overlayVisible" class="absolute inset-0 pointer-events-none">
         <div class="absolute left-0 right-0 bottom-0 p-3 pointer-events-auto">
