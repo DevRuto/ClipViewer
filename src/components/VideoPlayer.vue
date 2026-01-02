@@ -15,6 +15,8 @@ const showCopyFeedback = ref(false)
 const videoWidth = ref(0)
 const videoHeight = ref(0)
 const fileSize = ref(0)
+const attachTimestamp = ref(true)
+const STORAGE_KEY = 'clipviewer.attachTimestamp'
 
 const videoUrl = computed(() => {
   if (!props.videoId) return ''
@@ -69,7 +71,10 @@ const handleProgressClick = (e) => {
 
 const copyTimestampLink = () => {
   const baseUrl = window.location.origin + window.location.pathname
-  const url = `${baseUrl}?v=${props.videoId}#t=${Math.floor(currentTime.value)}`
+  let url = baseUrl
+  if (attachTimestamp.value) {
+    url += `#t=${Math.floor(currentTime.value)}`
+  }
   navigator.clipboard.writeText(url)
 
   showCopyFeedback.value = true
@@ -125,6 +130,14 @@ const handleHashChange = () => {
 }
 
 onMounted(async () => {
+  // initialize persisted checkbox state
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    attachTimestamp.value = stored === null ? true : stored === 'true'
+  } catch {
+    attachTimestamp.value = true
+  }
+
   window.addEventListener('hashchange', handleHashChange)
   handleHashChange()
 
@@ -138,6 +151,18 @@ watch(
   async () => {
     if (videoElement.value) {
       videoElement.value.load()
+    }
+  },
+)
+
+// persist attachTimestamp when it changes
+watch(
+  () => attachTimestamp.value,
+  (val) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, val ? 'true' : 'false')
+    } catch {
+      /* ignore */
     }
   },
 )
@@ -191,21 +216,32 @@ watch(
           {{ formattedCurrentTime }} / {{ formattedDuration }}
         </div>
 
-        <!-- Copy Timestamp Button -->
-        <button
-          @click="copyTimestampLink"
-          class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors flex items-center gap-2"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+        <!-- Copy Timestamp Controls -->
+        <div class="flex items-center gap-3">
+          <label class="flex items-center text-sm text-gray-300 gap-2">
+            <input
+              type="checkbox"
+              v-model="attachTimestamp"
+              class="h-4 w-4 text-red-600 bg-gray-800 border-gray-700 rounded focus:ring-0"
             />
-          </svg>
-          {{ showCopyFeedback ? 'Copied!' : 'Copy Link' }}
-        </button>
+            <span class="select-none">Attach timestamp</span>
+          </label>
+
+          <button
+            @click="copyTimestampLink"
+            class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
+            </svg>
+            {{ showCopyFeedback ? 'Copied!' : 'Copy Link' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
