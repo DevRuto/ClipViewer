@@ -12,6 +12,9 @@ const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const showCopyFeedback = ref(false)
+const videoWidth = ref(0)
+const videoHeight = ref(0)
+const fileSize = ref(0)
 
 const videoUrl = computed(() => {
   if (!props.videoId) return ''
@@ -77,8 +80,30 @@ const copyTimestampLink = () => {
   emit('timestamp-copied', currentTime.value)
 }
 
-const onLoadedMetadata = () => {
-  emit('video-loaded')
+const onLoadedMetadata = async () => {
+  await fetchFileSize()
+  duration.value = videoElement.value?.duration || 0
+  videoWidth.value = videoElement.value?.videoWidth || 0
+  videoHeight.value = videoElement.value?.videoHeight || 0
+  emit('video-loaded', {
+    duration: duration.value,
+    width: videoWidth.value,
+    height: videoHeight.value,
+    fileSize: fileSize.value,
+  })
+}
+
+const fetchFileSize = async () => {
+  console.log('Fetching file size for', videoUrl.value)
+  try {
+    const response = await fetch(videoUrl.value, { method: 'HEAD' })
+    const size = response.headers.get('content-length')
+    if (size) {
+      fileSize.value = parseInt(size, 10)
+    }
+  } catch (error) {
+    console.warn('Could not fetch video file size:', error)
+  }
 }
 
 const onTimeUpdate = () => {
@@ -99,7 +124,7 @@ const handleHashChange = () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('hashchange', handleHashChange)
   handleHashChange()
 
@@ -110,7 +135,7 @@ onMounted(() => {
 
 watch(
   () => props.videoId,
-  () => {
+  async () => {
     if (videoElement.value) {
       videoElement.value.load()
     }
