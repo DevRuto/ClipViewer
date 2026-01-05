@@ -1,0 +1,6 @@
+@ClipViewer.API_HostAddress = http://localhost:5169
+
+POST http://localhost:5169/api/upload
+Accept: application/json
+
+###
