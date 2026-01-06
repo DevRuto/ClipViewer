@@ -1,4 +1,5 @@
-﻿using System.Threading.Channels;
+﻿using System.Security.Cryptography;
+using System.Threading.Channels;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Models;
 
@@ -8,9 +9,16 @@ public class VideoJobQueue(
     Channel<VideoConversionJob> channel,
     ILogger<VideoJobQueue> logger) : IVideoJobQueue
 {
-    public ValueTask EnqueueAsync(VideoConversionJob job, CancellationToken cancellationToken = default)
+    public async ValueTask<string> EnqueueAsync(VideoConversionJob job, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Enqueueing job {job}", job);
-        return channel.Writer.WriteAsync(job, cancellationToken);
+        await channel.Writer.WriteAsync(job, cancellationToken);
+        return $"{GenerateFilename()}{Path.GetExtension(job.InputPath)}";
     }
+    
+    private static string GenerateFilename(int bytes = 4)
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(bytes))
+                .Replace("+", "")
+                .Replace("/", "")
+                .Replace("=", "");
 }

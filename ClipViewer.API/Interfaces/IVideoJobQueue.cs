@@ -4,5 +4,5 @@ namespace ClipViewer.API.Interfaces;
 
 public interface IVideoJobQueue
 {
-    ValueTask EnqueueAsync(VideoConversionJob job, CancellationToken cancellationToken = default);
+    ValueTask<string> EnqueueAsync(VideoConversionJob job, CancellationToken cancellationToken = default);
 }

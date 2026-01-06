@@ -15,12 +15,24 @@ public class UploadController(
     }
 
     [HttpPost]
-    public async Task<IActionResult> Upload()
+    public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromHeader(Name = "X-Api-Key")] Guid apiKey)
     {
+        // Validate media
+        var supportedExtensions = new[] { ".mp4", ".mkv", ".avi", ".mov" };
+        if (!supportedExtensions.Contains(Path.GetExtension(file.FileName), StringComparer.OrdinalIgnoreCase))
+        {
+            return BadRequest("Unsupported file type");
+        }
+
+        // TODO: Save to file system
+        using var stream = new MemoryStream();
+        await file.CopyToAsync(stream);
+        stream.Position = 0;
+        
+        // Process file
         var jobId = Guid.NewGuid();
+        var filename = await videoJobQueue.EnqueueAsync(new VideoConversionJob("input", "output", jobId));
 
-        await videoJobQueue.EnqueueAsync(new VideoConversionJob("input", "output", jobId));
-
-        return Accepted(new { jobId });
+        return Accepted(new { jobId, filename });
     }
 }

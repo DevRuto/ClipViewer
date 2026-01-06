@@ -18,7 +18,7 @@ public class VideoConversionWorker(
     private async Task ProcessAsync(VideoConversionJob job, CancellationToken stoppingToken)
     {
         logger.LogInformation("Processing video conversion job {job}", job.JobId);
-        await Task.Delay(10000);
+        await Task.Delay(10000, stoppingToken);
         logger.LogInformation("Finished processing video conversion job {job}", job.JobId);
     }
 }
