@@ -1,0 +1,145 @@
+using System.Threading.Channels;
+using ClipViewer.API.Interfaces;
+using ClipViewer.API.Models;
+using ClipViewer.API.Services;
+using Xunit.Abstractions;
+
+namespace ClipViewer.UnitTests;
+
+public class VideoConversionWorkerTests : IDisposable
+{
+    private readonly Channel<VideoConversionJob> _channel;
+    private readonly Mock<IFFmpegService> _mockFfmpegService;
+    private readonly Mock<ILogger<VideoConversionWorker>> _mockLogger;
+    private readonly string _testHlsPath;
+    private readonly string _testInputFile;
+    private readonly string _testOutputDir = Path.Combine(Path.GetTempPath(), "VideoConversionWorkerTests");
+    private readonly string _testOutputFile;
+    private readonly ITestOutputHelper _testOutputHelper;
+    private readonly string _testTempDir = Path.Combine(Path.GetTempPath(), "VideoConversionWorkerTests_Temp");
+
+    public VideoConversionWorkerTests(ITestOutputHelper testOutputHelper)
+    {
+        _testOutputHelper = testOutputHelper;
+        // Create test directories
+        Directory.CreateDirectory(_testOutputDir);
+        Directory.CreateDirectory(_testTempDir);
+
+        // Create a test input file
+        _testInputFile = Path.Combine(_testTempDir, "test_input.mp4");
+        _testOutputFile = Path.Combine(_testOutputDir, "test_output.mp4");
+        _testHlsPath = Path.Combine(_testOutputDir, "hls", "test_video");
+
+        File.WriteAllText(_testInputFile, "test video content");
+
+        _mockLogger = new Mock<ILogger<VideoConversionWorker>>();
+        _mockFfmpegService = new Mock<IFFmpegService>();
+        _channel = Channel.CreateUnbounded<VideoConversionJob>();
+    }
+
+    public void Dispose()
+    {
+        // Clean up test directories
+        if (Directory.Exists(_testOutputDir))
+            Directory.Delete(_testOutputDir, true);
+
+        if (Directory.Exists(_testTempDir))
+            Directory.Delete(_testTempDir, true);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WithValidJob_ProcessesSuccessfully()
+    {
+        // Arrange
+        var job = new VideoConversionJob(_testInputFile, _testOutputDir, Guid.NewGuid())
+        {
+            VideoId = "test_video",
+            OutputFilePath = _testOutputFile
+        };
+
+        _mockFfmpegService.Setup(x => x.ConvertToHls(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var worker = new VideoConversionWorker(_channel, _mockLogger.Object, _mockFfmpegService.Object);
+
+        // Act
+        await _channel.Writer.WriteAsync(job);
+        _channel.Writer.Complete();
+
+        // Give the worker time to process the job
+        await worker.StartAsync(CancellationToken.None);
+        await Task.Delay(500);
+        await worker.StopAsync(CancellationToken.None);
+
+        // Assert
+        Assert.True(File.Exists(_testOutputFile), "Output file should exist after processing");
+        _mockFfmpegService.Verify(x => x.ConvertToHls(
+                _testOutputFile,
+                _testHlsPath,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WithMissingInputFile_DoesNotProcess()
+    {
+        // Arrange
+        var nonExistentFile = Path.Combine(_testTempDir, "nonexistent.mp4");
+        var job = new VideoConversionJob(nonExistentFile, _testOutputDir, Guid.NewGuid())
+        {
+            VideoId = "test_video",
+            OutputFilePath = _testOutputFile
+        };
+
+        var worker = new VideoConversionWorker(_channel, _mockLogger.Object, _mockFfmpegService.Object);
+
+        // Act
+        await _channel.Writer.WriteAsync(job);
+        _channel.Writer.Complete();
+
+        // Give the worker time to process the job
+        await worker.StartAsync(CancellationToken.None);
+        await worker.StopAsync(CancellationToken.None);
+
+        // Assert
+        Assert.False(File.Exists(_testOutputFile), "Output file should not be created for missing input");
+        _mockFfmpegService.Verify(x => x.ConvertToHls(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WithFfmpegError_StillDeletesTempFile()
+    {
+        // Arrange
+        var job = new VideoConversionJob(_testInputFile, _testOutputDir, Guid.NewGuid())
+        {
+            VideoId = "test_video",
+            OutputFilePath = _testOutputFile
+        };
+
+        _mockFfmpegService.Setup(x => x.ConvertToHls(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("FFmpeg conversion failed"));
+
+        var worker = new VideoConversionWorker(_channel, _mockLogger.Object, _mockFfmpegService.Object);
+
+        // Act
+        await _channel.Writer.WriteAsync(job);
+        _channel.Writer.Complete();
+
+        // Give the worker time to process the job
+        await worker.StartAsync(CancellationToken.None);
+        await worker.StopAsync(CancellationToken.None);
+
+        // Assert - Temp file should still be deleted even if FFmpeg fails
+        Assert.True(File.Exists(_testInputFile), "Input file should still exist if FFmpeg fails");
+    }
+}
