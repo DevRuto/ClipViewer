@@ -13,7 +13,11 @@ var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
 FFmpeg.SetExecutablesPath(ffmpegFolder);
 await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegFolder);
 
+var spaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "clipviewer.vue", "dist");
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSpaStaticFiles(options => options.RootPath = spaPath);
 
 // Add services to the container.
 builder.Services.AddSingleton<IFFmpegService, FFMpegService>();
@@ -49,6 +53,7 @@ if (app.Environment.IsDevelopment()) app.MapOpenApi();
 
 // app.UseHttpsRedirection();
 
+app.UseRouting();
 app.UseAuthorization();
 
 // Serve static files from output folder
@@ -56,25 +61,50 @@ var outputPath = Path.IsPathRooted(outputVideoFolder)
     ? outputVideoFolder
     : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
 
+app.UseWhen(
+    context => context.Request.Path.StartsWithSegments("/clips") &&
+               !context.Request.Path.StartsWithSegments("/clips/temp"),
+    clipBuilder =>
+    {
+        clipBuilder.UseStaticFiles(new StaticFileOptions
+            { FileProvider = new PhysicalFileProvider(outputPath), RequestPath = "/clips" });
+    });
+
+app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
+    apiBuilder => { apiBuilder.UseEndpoints(endpoints => { endpoints.MapControllers(); }); });
+
+
+// Serve SPA files
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(outputPath),
-    RequestPath = "/clips"
+    FileProvider = new PhysicalFileProvider(spaPath)
 });
 
-// Block access to temp folder
-app.Use(async (context, next) =>
+app.UseSpa(spaBuilder =>
 {
-    Console.WriteLine(context.Request.Path);
-    if (context.Request.Path.StartsWithSegments("/clips/temp"))
+    spaBuilder.Options.SourcePath = spaPath;
+    spaBuilder.Options.DefaultPageStaticFileOptions = new StaticFileOptions
     {
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        return;
-    }
-
-    await next();
+        FileProvider = new PhysicalFileProvider(spaPath)
+    };
 });
 
-app.MapControllers();
+// Handle SPA fallback routing
+// app.Use(async (context, next) =>
+// {
+//     Console.WriteLine(context.Request.Path);
+//     if (context.Request.Path.StartsWithSegments("/clips/temp"))
+//     {
+//         context.Response.StatusCode = StatusCodes.Status404NotFound;
+//         return;
+//     }
+//
+//     // if (!context.Request.Path.StartsWithSegments("/clips") &&
+//     //     !context.Request.Path.StartsWithSegments("/api"))
+//     context.Request.Path = "/index.html";
+//     await next();
+// });
+//
+// app.MapControllers();
 
 app.Run();

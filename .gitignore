@@ -92,3 +92,7 @@ out/
 *.userosscache
 *.sln.docstates
 *.vssscc
+
+# Ignore output folder
+Output/
+FFmpeg/

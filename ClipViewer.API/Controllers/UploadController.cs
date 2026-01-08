@@ -39,4 +39,10 @@ public class UploadController(
 
         return Accepted(new { jobId, filename });
     }
+
+    [HttpGet]
+    public IActionResult Get()
+    {
+        return Ok("Hello World!");
+    }
 }
