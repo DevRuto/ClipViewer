@@ -2,6 +2,8 @@ using System.Threading.Channels;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Models;
 using ClipViewer.API.Services;
+using ClipViewer.API.Data;
+using Microsoft.EntityFrameworkCore;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
@@ -27,6 +29,10 @@ builder.Services.AddHostedService<VideoConversionWorker>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+// Add DbContext with in-memory database
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseInMemoryDatabase("ClipViewerDb"));
 
 var app = builder.Build();
 
