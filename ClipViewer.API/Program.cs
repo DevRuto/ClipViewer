@@ -87,6 +87,8 @@ app.UseSpa(spaBuilder =>
     {
         FileProvider = new PhysicalFileProvider(spaPath)
     };
+
+    if (app.Environment.IsDevelopment()) spaBuilder.UseProxyToSpaDevelopmentServer("http://localhost:5173");
 });
 
 // Handle SPA fallback routing
