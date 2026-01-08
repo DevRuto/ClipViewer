@@ -5,6 +5,7 @@ using ClipViewer.API.Services;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
+// Download FFmpeg
 var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
 FFmpeg.SetExecutablesPath(ffmpegFolder);
 await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegFolder);
@@ -15,10 +16,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<IFFmpegService, FFMpegService>();
 
 builder.Services.AddSingleton(
-    Channel.CreateBounded<VideoConversionJob>(
-        new BoundedChannelOptions(50)
+    Channel.CreateUnbounded<VideoConversionJob>(
+        new UnboundedChannelOptions
         {
-            FullMode = BoundedChannelFullMode.Wait,
             SingleReader = false,
             SingleWriter = false
         }));
