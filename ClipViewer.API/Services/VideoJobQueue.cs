@@ -5,13 +5,13 @@ using ClipViewer.API.Models;
 
 namespace ClipViewer.API.Services;
 
-public class VideoJobQueue(
+public partial class VideoJobQueue(
     Channel<VideoConversionJob> channel,
     ILogger<VideoJobQueue> logger) : IVideoJobQueue
 {
     public async ValueTask<string> EnqueueAsync(VideoConversionJob job, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Enqueueing job {job}", job);
+        LogEnqueueingJob(logger, job);
         await channel.Writer.WriteAsync(job, cancellationToken);
         return $"{GenerateFilename()}{Path.GetExtension(job.InputPath)}";
     }
@@ -21,4 +21,7 @@ public class VideoJobQueue(
                 .Replace("+", "")
                 .Replace("/", "")
                 .Replace("=", "");
+
+    [LoggerMessage(LogLevel.Information, "Enqueueing job {job}")]
+    static partial void LogEnqueueingJob(ILogger<VideoJobQueue> logger, VideoConversionJob job);
 }

@@ -3,7 +3,7 @@ using ClipViewer.API.Models;
 
 namespace ClipViewer.API.Services;
 
-public class VideoConversionWorker(
+public partial class VideoConversionWorker(
     Channel<VideoConversionJob> channel,
     ILogger<VideoConversionWorker> logger) : BackgroundService
 {
@@ -17,8 +17,14 @@ public class VideoConversionWorker(
 
     private async Task ProcessAsync(VideoConversionJob job, CancellationToken stoppingToken)
     {
-        logger.LogInformation("Processing video conversion job {job}", job.JobId);
+        LogProcessing(logger, job.JobId);
         await Task.Delay(10000, stoppingToken);
-        logger.LogInformation("Finished processing video conversion job {job}", job.JobId);
+        LogFinishedProcessing(logger, job.JobId);
     }
+
+    [LoggerMessage(LogLevel.Information, "Processing video conversion job {job}")]
+    static partial void LogProcessing(ILogger<VideoConversionWorker> logger, Guid job);
+
+    [LoggerMessage(LogLevel.Information, "Finished processing video conversion job {job}")]
+    static partial void LogFinishedProcessing(ILogger<VideoConversionWorker> logger, Guid job);
 }
