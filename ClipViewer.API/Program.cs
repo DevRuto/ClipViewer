@@ -91,22 +91,4 @@ app.UseSpa(spaBuilder =>
     if (app.Environment.IsDevelopment()) spaBuilder.UseProxyToSpaDevelopmentServer("http://localhost:5173");
 });
 
-// Handle SPA fallback routing
-// app.Use(async (context, next) =>
-// {
-//     Console.WriteLine(context.Request.Path);
-//     if (context.Request.Path.StartsWithSegments("/clips/temp"))
-//     {
-//         context.Response.StatusCode = StatusCodes.Status404NotFound;
-//         return;
-//     }
-//
-//     // if (!context.Request.Path.StartsWithSegments("/clips") &&
-//     //     !context.Request.Path.StartsWithSegments("/api"))
-//     context.Request.Path = "/index.html";
-//     await next();
-// });
-//
-// app.MapControllers();
-
 app.Run();
