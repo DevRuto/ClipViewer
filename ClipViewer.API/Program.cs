@@ -1,9 +1,10 @@
 using System.Threading.Channels;
+using ClipViewer.API.Data;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Models;
 using ClipViewer.API.Services;
-using ClipViewer.API.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
@@ -51,24 +52,26 @@ if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseAuthorization();
 
 // Serve static files from output folder
-var outputPath = Path.IsPathRooted(outputVideoFolder) 
-    ? outputVideoFolder 
+var outputPath = Path.IsPathRooted(outputVideoFolder)
+    ? outputVideoFolder
     : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
 
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(outputPath),
-    RequestPath = "/videos"
+    FileProvider = new PhysicalFileProvider(outputPath),
+    RequestPath = "/clips"
 });
 
 // Block access to temp folder
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/videos/temp"))
+    Console.WriteLine(context.Request.Path);
+    if (context.Request.Path.StartsWithSegments("/clips/temp"))
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         return;
     }
+
     await next();
 });
 

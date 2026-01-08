@@ -21,6 +21,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.FilePath).IsRequired();
             entity.Property(e => e.Duration).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
+
+            // Add index to VideoId
+            entity.HasIndex(e => e.VideoId);
         });
     }
 }
