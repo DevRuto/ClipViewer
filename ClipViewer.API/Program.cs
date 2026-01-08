@@ -13,7 +13,7 @@ await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegFolder);
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddScoped<IFFmpegService, FFMpegService>();
+builder.Services.AddSingleton<IFFmpegService, FFMpegService>();
 
 builder.Services.AddSingleton(
     Channel.CreateUnbounded<VideoConversionJob>(
@@ -30,15 +30,41 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
+var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
+if (outputVideoFolder is null || tempVideoFolder is null)
+    throw new InvalidOperationException("OutputVideoFolder or TempVideoFolder is not configured");
+if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
+if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
 
-app.UseHttpsRedirection();
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+
+// app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+// Serve static files from output folder
+var outputPath = Path.IsPathRooted(outputVideoFolder) 
+    ? outputVideoFolder 
+    : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(outputPath),
+    RequestPath = "/videos"
+});
+
+// Block access to temp folder
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/videos/temp"))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    await next();
+});
 
 app.MapControllers();
 

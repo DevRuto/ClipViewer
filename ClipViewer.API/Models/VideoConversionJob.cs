@@ -1,3 +1,15 @@
 ﻿namespace ClipViewer.API.Models;
 
-public record VideoConversionJob(string InputPath, string OutputDirectory, Guid JobId);
+public class VideoConversionJob(string inputPath, string outputDirectory, Guid jobId)
+{
+    public string? VideoId { get; set; }
+    public string InputPath { get; } = inputPath;
+    public string OutputDirectory { get; } = outputDirectory;
+    public Guid JobId { get; } = jobId;
+    public string? OutputFilePath { get; set; }
+
+    public override string ToString()
+    {
+        return $"{JobId}: {InputPath}";
+    }
+}

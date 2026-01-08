@@ -12,15 +12,20 @@ public partial class VideoJobQueue(
     public async ValueTask<string> EnqueueAsync(VideoConversionJob job, CancellationToken cancellationToken = default)
     {
         LogEnqueueingJob(logger, job);
+        job.VideoId = GenerateFilename();
+        var generatedFilename = $"{job.VideoId}{Path.GetExtension(job.InputPath)}";
+        job.OutputFilePath = Path.Combine(job.OutputDirectory, generatedFilename);
         await channel.Writer.WriteAsync(job, cancellationToken);
-        return $"{GenerateFilename()}{Path.GetExtension(job.InputPath)}";
+        return generatedFilename;
     }
-    
+
     private static string GenerateFilename(int bytes = 4)
-        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(bytes))
-                .Replace("+", "")
-                .Replace("/", "")
-                .Replace("=", "");
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(bytes))
+            .Replace("+", "")
+            .Replace("/", "")
+            .Replace("=", "");
+    }
 
     [LoggerMessage(LogLevel.Information, "Enqueueing job {job}")]
     static partial void LogEnqueueingJob(ILogger<VideoJobQueue> logger, VideoConversionJob job);

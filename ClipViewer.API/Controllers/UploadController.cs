@@ -6,32 +6,36 @@ namespace ClipViewer.API.Controllers;
 
 [Route("api/[controller]")]
 public class UploadController(
-    IVideoJobQueue videoJobQueue) : ControllerBase
+    IConfiguration configuration,
+    IVideoJobQueue videoJobQueue)
+    : ControllerBase
 {
-    // GET
-    public IActionResult Index()
-    {
-        return Ok();
-    }
+    private readonly string _outputVideoFolder = configuration
+                                                     .GetSection("UploadOptions")
+                                                     .GetSection("OutputVideoFolder").Value
+                                                 ?? throw new InvalidOperationException();
+
+    private readonly string _tempVideoFolder = configuration
+                                                   .GetSection("UploadOptions")
+                                                   .GetSection("TempVideoFolder").Value
+                                               ?? throw new InvalidOperationException();
 
     [HttpPost]
     public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromHeader(Name = "X-Api-Key")] Guid apiKey)
     {
         // Validate media
-        var supportedExtensions = new[] { ".mp4", ".mkv", ".avi", ".mov" };
-        if (!supportedExtensions.Contains(Path.GetExtension(file.FileName), StringComparer.OrdinalIgnoreCase))
-        {
-            return BadRequest("Unsupported file type");
-        }
+        // var supportedExtensions = new[] { ".mp4", ".mkv", ".avi", ".mov" };
+        // if (!supportedExtensions.Contains(Path.GetExtension(file.FileName), StringComparer.OrdinalIgnoreCase))
+        //     return BadRequest("Unsupported file type");
 
-        // TODO: Save to file system
-        using var stream = new MemoryStream();
-        await file.CopyToAsync(stream);
-        stream.Position = 0;
-        
+        // Save to temp folder
+        var filePath = Path.Combine(_tempVideoFolder, $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}");
+        await using var fileStream = new FileStream(filePath, FileMode.Create);
+        await file.CopyToAsync(fileStream);
+
         // Process file
         var jobId = Guid.NewGuid();
-        var filename = await videoJobQueue.EnqueueAsync(new VideoConversionJob("input", "output", jobId));
+        var filename = await videoJobQueue.EnqueueAsync(new VideoConversionJob(filePath, _outputVideoFolder, jobId));
 
         return Accepted(new { jobId, filename });
     }
