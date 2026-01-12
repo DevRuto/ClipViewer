@@ -13,6 +13,11 @@ const router = createRouter({
       name: 'clips',
       component: () => import('../views/ClipsView.vue'),
     },
+    {
+      path: '/clips/:videoId',
+      name: 'video',
+      component: () => import('../views/VideoView.vue'),
+    },
   ],
 })
 

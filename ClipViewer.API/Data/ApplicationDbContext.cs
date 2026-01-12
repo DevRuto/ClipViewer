@@ -18,12 +18,35 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasKey(e => e.Id);
             entity.Property(e => e.VideoId).IsRequired();
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.FilePath).IsRequired();
+            entity.Property(e => e.File).IsRequired();
             entity.Property(e => e.Duration).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
 
             // Add index to VideoId
             entity.HasIndex(e => e.VideoId);
+        });
+    }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder.UseSeeding((context, _) =>
+        {
+            var db = context as ApplicationDbContext;
+            var videos = db.VideoClips.FirstOrDefault();
+            if (videos != null) return;
+            for (var i = 0; i < 20; i++)
+                db.VideoClips.Add(
+                    new VideoClip
+                    {
+                        VideoId = "testvid" + i,
+                        Name = $"Test Video {i}",
+                        File = "test.mp4",
+                        Thumbnail = "thumbs/test.jpg",
+                        Duration = TimeSpan.FromSeconds(10),
+                        CreatedAt = DateTime.Now
+                    });
+            context.SaveChanges();
         });
     }
 }

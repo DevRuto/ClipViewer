@@ -1,13 +1,13 @@
 using System.Threading.Channels;
 using ClipViewer.API.Data;
 using ClipViewer.API.Interfaces;
+using ClipViewer.API.Middleware;
 using ClipViewer.API.Models;
 using ClipViewer.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
-using ClipViewer.API.Middleware;
 
 // Download FFmpeg
 var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
@@ -42,6 +42,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 var app = builder.Build();
 
+// Configure folders
 var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
 var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
 if (outputVideoFolder is null || tempVideoFolder is null)
@@ -49,8 +50,19 @@ if (outputVideoFolder is null || tempVideoFolder is null)
 if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
 if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
 
+// Create database
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    context.Database.EnsureCreated();
+}
+
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment()) app.MapOpenApi();
+if (app.Environment.IsDevelopment())
+    app.MapOpenApi();
+else
+    // Add SPA template middleware
+    app.UseMiddleware<SpaTemplateMiddleware>(spaPath);
 
 // app.UseHttpsRedirection();
 
@@ -63,20 +75,16 @@ var outputPath = Path.IsPathRooted(outputVideoFolder)
     : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
 
 app.UseWhen(
-    context => context.Request.Path.StartsWithSegments("/clips") &&
-               !context.Request.Path.StartsWithSegments("/clips/temp"),
+    context => context.Request.Path.StartsWithSegments("/files") &&
+               !context.Request.Path.StartsWithSegments("/files/temp"),
     clipBuilder =>
     {
         clipBuilder.UseStaticFiles(new StaticFileOptions
-            { FileProvider = new PhysicalFileProvider(outputPath), RequestPath = "/clips" });
+            { FileProvider = new PhysicalFileProvider(outputPath), RequestPath = "/files" });
     });
 
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
     apiBuilder => { apiBuilder.UseEndpoints(endpoints => { endpoints.MapControllers(); }); });
-
-
-// Add SPA template middleware
-app.UseMiddleware<SpaTemplateMiddleware>(spaPath);
 
 // Serve SPA files
 app.UseStaticFiles(new StaticFileOptions
@@ -87,10 +95,6 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseSpa(spaBuilder =>
 {
     spaBuilder.Options.SourcePath = spaPath;
-    spaBuilder.Options.DefaultPageStaticFileOptions = new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(spaPath)
-    };
 
     if (app.Environment.IsDevelopment()) spaBuilder.UseProxyToSpaDevelopmentServer("http://localhost:5173");
 });
