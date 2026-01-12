@@ -42,7 +42,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                         VideoId = "testvid" + i,
                         Name = $"Test Video {i}",
                         File = "temp.mp4",
-                        Thumbnail = "thumbs/test.jpg",
+                        Thumbnail = "thumbnails/test.jpg",
                         Duration = TimeSpan.FromSeconds(10),
                         CreatedAt = DateTime.Now
                     });

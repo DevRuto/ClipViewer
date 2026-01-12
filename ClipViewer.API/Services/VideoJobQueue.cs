@@ -14,7 +14,7 @@ public partial class VideoJobQueue(
         LogEnqueueingJob(logger, job);
         job.VideoId = GenerateFilename();
         var generatedFilename = $"{job.VideoId}{Path.GetExtension(job.InputPath)}";
-        job.OutputFilePath = Path.Combine(job.OutputDirectory, generatedFilename);
+        job.OutputFilePath = Path.Combine(job.OutputDirectory, "source", generatedFilename);
         await channel.Writer.WriteAsync(job, cancellationToken);
         return generatedFilename;
     }

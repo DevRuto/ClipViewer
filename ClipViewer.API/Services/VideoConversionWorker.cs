@@ -26,11 +26,16 @@ public partial class VideoConversionWorker(
 
         // Copy temp file to output directory
         // Do not delete so we have a source if something goes wrong
+        Directory.CreateDirectory(Path.GetDirectoryName(job.OutputFilePath));
         File.Copy(job.InputPath, job.OutputFilePath);
 
         // Fix hls path to include file id
         var hlsPath = Path.Combine(job.OutputDirectory, "hls", job.VideoId);
         await ffmpegService.ConvertToHls(job.OutputFilePath, hlsPath, stoppingToken);
+
+        // Generate thumbnail
+        var thumbnailPath = Path.Combine(job.OutputDirectory, "thumbnails", $"{job.VideoId}.jpg");
+        await ffmpegService.GenerateThumbnail(job.OutputFilePath, thumbnailPath, stoppingToken);
 
         try
         {
