@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
+using ClipViewer.API.Middleware;
 
 // Download FFmpeg
 var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
@@ -73,6 +74,9 @@ app.UseWhen(
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
     apiBuilder => { apiBuilder.UseEndpoints(endpoints => { endpoints.MapControllers(); }); });
 
+
+// Add SPA template middleware
+app.UseMiddleware<SpaTemplateMiddleware>(spaPath);
 
 // Serve SPA files
 app.UseStaticFiles(new StaticFileOptions
