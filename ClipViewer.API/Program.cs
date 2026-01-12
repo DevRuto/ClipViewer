@@ -42,9 +42,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 var app = builder.Build();
 
-// Configure folders
 var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
 var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
+var publicFilePath = builder.Configuration.GetSection("UploadOptions").GetSection("PublicFilePath").Value;
+
+// Configure folders
 if (outputVideoFolder is null || tempVideoFolder is null)
     throw new InvalidOperationException("OutputVideoFolder or TempVideoFolder is not configured");
 if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
@@ -75,12 +77,12 @@ var outputPath = Path.IsPathRooted(outputVideoFolder)
     : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
 
 app.UseWhen(
-    context => context.Request.Path.StartsWithSegments("/files") &&
-               !context.Request.Path.StartsWithSegments("/files/temp"),
+    context => context.Request.Path.StartsWithSegments(publicFilePath) &&
+               !context.Request.Path.StartsWithSegments($"{publicFilePath}/temp"),
     clipBuilder =>
     {
         clipBuilder.UseStaticFiles(new StaticFileOptions
-            { FileProvider = new PhysicalFileProvider(outputPath), RequestPath = "/files" });
+            { FileProvider = new PhysicalFileProvider(outputPath), RequestPath = publicFilePath });
     });
 
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
