@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Models;
 using ClipViewer.API.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
 
 namespace ClipViewer.UnitTests;
@@ -11,10 +12,10 @@ public class VideoConversionWorkerTests : IDisposable
     private readonly Channel<VideoConversionJob> _channel;
     private readonly Mock<IFFmpegService> _mockFfmpegService;
     private readonly Mock<ILogger<VideoConversionWorker>> _mockLogger;
+    private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
     private readonly string _testHlsPath;
     private readonly string _testInputFile;
     private readonly string _testOutputDir = Path.Combine(Path.GetTempPath(), "VideoConversionWorkerTests");
-    private readonly string _testOutputFile;
     private readonly ITestOutputHelper _testOutputHelper;
     private readonly string _testTempDir = Path.Combine(Path.GetTempPath(), "VideoConversionWorkerTests_Temp");
 
@@ -27,7 +28,6 @@ public class VideoConversionWorkerTests : IDisposable
 
         // Create a test input file
         _testInputFile = Path.Combine(_testTempDir, "test_input.mp4");
-        _testOutputFile = Path.Combine(_testOutputDir, "test_output.mp4");
         _testHlsPath = Path.Combine(_testOutputDir, "hls", "test_video");
 
         File.WriteAllText(_testInputFile, "test video content");
@@ -35,6 +35,7 @@ public class VideoConversionWorkerTests : IDisposable
         _mockLogger = new Mock<ILogger<VideoConversionWorker>>();
         _mockFfmpegService = new Mock<IFFmpegService>();
         _channel = Channel.CreateUnbounded<VideoConversionJob>();
+        _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
     }
 
     public void Dispose()
@@ -53,8 +54,7 @@ public class VideoConversionWorkerTests : IDisposable
         // Arrange
         var job = new VideoConversionJob(_testInputFile, _testOutputDir, Guid.NewGuid())
         {
-            VideoId = "test_video",
-            OutputFilePath = _testOutputFile
+            VideoId = "test_video"
         };
 
         _mockFfmpegService.Setup(x => x.ConvertToHls(
@@ -63,7 +63,8 @@ public class VideoConversionWorkerTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var worker = new VideoConversionWorker(_channel, _mockLogger.Object, _mockFfmpegService.Object);
+        var worker = new VideoConversionWorker(_mockLogger.Object, _channel, _mockFfmpegService.Object,
+            _mockServiceScopeFactory.Object);
 
         // Act
         await _channel.Writer.WriteAsync(job);
@@ -75,9 +76,11 @@ public class VideoConversionWorkerTests : IDisposable
         await worker.StopAsync(CancellationToken.None);
 
         // Assert
-        Assert.True(File.Exists(_testOutputFile), "Output file should exist after processing");
+        var outputFile = Path.Combine(_testOutputDir, "source", $"{job.VideoId}{Path.GetExtension(_testInputFile)}");
+        Console.WriteLine(outputFile);
+        Assert.True(File.Exists(outputFile), "Output file should exist after processing");
         _mockFfmpegService.Verify(x => x.ConvertToHls(
-                _testOutputFile,
+                outputFile,
                 _testHlsPath,
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -90,11 +93,11 @@ public class VideoConversionWorkerTests : IDisposable
         var nonExistentFile = Path.Combine(_testTempDir, "nonexistent.mp4");
         var job = new VideoConversionJob(nonExistentFile, _testOutputDir, Guid.NewGuid())
         {
-            VideoId = "test_video",
-            OutputFilePath = _testOutputFile
+            VideoId = "test_video"
         };
 
-        var worker = new VideoConversionWorker(_channel, _mockLogger.Object, _mockFfmpegService.Object);
+        var worker = new VideoConversionWorker(_mockLogger.Object, _channel, _mockFfmpegService.Object,
+            _mockServiceScopeFactory.Object);
 
         // Act
         await _channel.Writer.WriteAsync(job);
@@ -105,7 +108,8 @@ public class VideoConversionWorkerTests : IDisposable
         await worker.StopAsync(CancellationToken.None);
 
         // Assert
-        Assert.False(File.Exists(_testOutputFile), "Output file should not be created for missing input");
+        var outputFile = Path.Combine(_testOutputDir, "source", $"{job.VideoId}/{Path.GetExtension(nonExistentFile)}");
+        Assert.False(File.Exists(outputFile), "Output file should not be created for missing input");
         _mockFfmpegService.Verify(x => x.ConvertToHls(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
@@ -119,8 +123,7 @@ public class VideoConversionWorkerTests : IDisposable
         // Arrange
         var job = new VideoConversionJob(_testInputFile, _testOutputDir, Guid.NewGuid())
         {
-            VideoId = "test_video",
-            OutputFilePath = _testOutputFile
+            VideoId = "test_video"
         };
 
         _mockFfmpegService.Setup(x => x.ConvertToHls(
@@ -129,7 +132,8 @@ public class VideoConversionWorkerTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("FFmpeg conversion failed"));
 
-        var worker = new VideoConversionWorker(_channel, _mockLogger.Object, _mockFfmpegService.Object);
+        var worker = new VideoConversionWorker(_mockLogger.Object, _channel, _mockFfmpegService.Object,
+            _mockServiceScopeFactory.Object);
 
         // Act
         await _channel.Writer.WriteAsync(job);
