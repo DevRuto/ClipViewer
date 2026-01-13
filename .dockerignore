@@ -14,9 +14,7 @@
 **/.vite
 
 # Upload directories
-**/output
-**/Thumbnails
-**/HLS
+**/Output
 
 # Development and IDE files
 .vs/
