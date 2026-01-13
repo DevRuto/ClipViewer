@@ -24,4 +24,9 @@ export default defineConfig([
   ...pluginVue.configs['flat/essential'],
 
   skipFormatting,
+  {
+    rules: {
+      'vue/no-deprecated-slot-attribute': 'off',
+    },
+  },
 ])

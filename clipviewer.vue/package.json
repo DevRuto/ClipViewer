@@ -15,6 +15,8 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
+    "hls-video-element": "^1.5.10",
+    "media-chrome": "^4.17.2",
     "tailwindcss": "^4.1.18",
     "vue": "^3.5.26",
     "vue-router": "^4.6.4"

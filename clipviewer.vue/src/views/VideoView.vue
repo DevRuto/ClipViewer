@@ -1,10 +1,18 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import VideoPlayer from '../components/VideoPlayer.vue'
 
 const route = useRoute()
 const video = ref(null)
 const loading = ref(true)
+
+const videoSource = computed(() => {
+  if (video.value?.hlsPlaylistFile) {
+    return video.value.hlsPlaylistFile
+  }
+  return video.value?.sourceVideoFile
+})
 
 onMounted(async () => {
   try {
@@ -33,14 +41,7 @@ onMounted(async () => {
       <div v-else-if="video" class="max-w-4xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
           <div class="aspect-video bg-black">
-            <video
-              controls
-              class="w-full h-full"
-              :poster="video.thumbnail || '/placeholder-video.jpg'"
-            >
-              <source :src="video.file" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+            <video-player :src="videoSource" :placeholder="video.thumbnail" />
           </div>
 
           <div class="p-6">
@@ -48,19 +49,6 @@ onMounted(async () => {
             <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
               <span>Duration: {{ video.duration }}</span>
               <span>Uploaded: {{ new Date(video.createdAt).toLocaleDateString() }}</span>
-            </div>
-
-            <div class="flex items-center space-x-4">
-              <span
-                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
-                :class="
-                  video.isProcessed
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                "
-              >
-                {{ video.isProcessed ? 'Processed' : 'Processing' }}
-              </span>
             </div>
           </div>
         </div>

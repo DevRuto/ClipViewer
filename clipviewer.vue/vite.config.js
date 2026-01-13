@@ -7,10 +7,32 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue(), tailwindcss(), vueDevTools()],
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag.startsWith('media-') || tag.startsWith('hls-'),
+        },
+      },
+    }),
+    tailwindcss(),
+    vueDevTools(),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5169',
+        changeOrigin: true,
+      },
+      '/files': {
+        target: 'http://localhost:5169',
+        changeOrigin: true,
+      },
     },
   },
 })
