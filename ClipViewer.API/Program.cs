@@ -37,18 +37,23 @@ builder.Services.AddHostedService<VideoConversionWorker>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Add authentication services
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Add authentication and authorization
+builder.Services.AddAuthentication()
+    .AddApiKeyAuth();
+
+builder.Services.AddAuthorization();
+
 // Configure database based on environment
 if (builder.Environment.IsDevelopment() || builder.Environment.IsProduction())
-{
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-}
 else
-{
     // Use in-memory database for testing
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseInMemoryDatabase("ClipViewerDb"));
-}
 
 var app = builder.Build();
 
@@ -79,6 +84,9 @@ else
 // app.UseHttpsRedirection();
 
 app.UseRouting();
+
+// Add authentication and authorization middleware
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Serve static files from output folder
@@ -105,7 +113,11 @@ app.UseWhen(
     });
 
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
-    apiBuilder => { apiBuilder.UseEndpoints(endpoints => { endpoints.MapControllers(); }); });
+    apiBuilder =>
+    {
+        // Require authorization for all API endpoints except auth endpoints
+        apiBuilder.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+    });
 
 // Serve SPA files
 app.UseStaticFiles(new StaticFileOptions

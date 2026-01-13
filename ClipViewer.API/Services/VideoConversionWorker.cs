@@ -19,7 +19,8 @@ public partial class VideoConversionWorker(
             await ProcessAsync(job, dbContext, stoppingToken);
     }
 
-    private async Task ProcessAsync(VideoConversionJob job, ApplicationDbContext dbContext,
+    private async Task ProcessAsync(
+        VideoConversionJob job, ApplicationDbContext dbContext,
         CancellationToken stoppingToken)
     {
         LogProcessingStart(logger, job.JobId);
