@@ -17,7 +17,7 @@ public class FFMpegService : IFFmpegService
                 "-c:a aac -b:a 128k " +
                 "-start_number 0 -hls_time 10 -hls_list_size 0 " +
                 "-hls_flags independent_segments -f hls")
-            .AddParameter($"{destinationFolder}/index.m3u8");
+            .AddParameter($"{destinationFolder}/playlist.m3u8");
 
         await conversion.Start(stoppingToken);
     }
@@ -32,5 +32,10 @@ public class FFMpegService : IFFmpegService
             .AddParameter(destinationFile);
 
         await conversion.Start(stoppingToken);
+    }
+
+    public Task<IMediaInfo> GetMediaInfo(string videoFile, CancellationToken stoppingToken)
+    {
+        return FFmpeg.GetMediaInfo(videoFile, stoppingToken);
     }
 }

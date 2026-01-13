@@ -21,12 +21,14 @@ public class UploadController(
                                                ?? throw new InvalidOperationException();
 
     [HttpPost]
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
     public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromHeader(Name = "X-Api-Key")] Guid apiKey)
     {
         // Validate media
-        // var supportedExtensions = new[] { ".mp4", ".mkv", ".avi", ".mov" };
-        // if (!supportedExtensions.Contains(Path.GetExtension(file.FileName), StringComparer.OrdinalIgnoreCase))
-        //     return BadRequest("Unsupported file type");
+        var supportedExtensions = new[] { ".mp4", ".mkv", ".avi", ".mov" };
+        if (!supportedExtensions.Contains(Path.GetExtension(file.FileName), StringComparer.OrdinalIgnoreCase))
+            return BadRequest("Unsupported file type");
 
         // Save to temp folder
         var filePath = Path.Combine(_tempVideoFolder, $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}");

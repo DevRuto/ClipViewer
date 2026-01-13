@@ -20,8 +20,9 @@ public class VideosController(
         var videos = await context.VideoClips.ToListAsync();
         foreach (var video in videos)
         {
-            video.File = $"{_publicFilePath}/{video.File}";
-            video.Thumbnail = $"{_publicFilePath}/{video.Thumbnail}";
+            video.SourceVideoFile = $"{_publicFilePath}{video.SourceVideoFile}";
+            video.Thumbnail = $"{_publicFilePath}{video.Thumbnail}";
+            video.HlsPlaylistFile = $"{_publicFilePath}{video.HlsPlaylistFile}";
         }
 
         return videos;
@@ -30,10 +31,11 @@ public class VideosController(
     [HttpGet("{videoId}")]
     public async Task<ActionResult<VideoClip>> Get(string videoId)
     {
-        var vid = await context.VideoClips.FirstOrDefaultAsync(v => v.VideoId == videoId);
-        if (vid == null) return NotFound();
-        vid.File = $"{_publicFilePath}/{vid.File}";
-        vid.Thumbnail = $"{_publicFilePath}/{vid.Thumbnail}";
-        return vid;
+        var video = await context.VideoClips.FirstOrDefaultAsync(v => v.VideoId == videoId);
+        if (video == null) return NotFound();
+        video.SourceVideoFile = $"{_publicFilePath}{video.SourceVideoFile}";
+        video.Thumbnail = $"{_publicFilePath}{video.Thumbnail}";
+        video.HlsPlaylistFile = $"{_publicFilePath}{video.HlsPlaylistFile}";
+        return video;
     }
 }

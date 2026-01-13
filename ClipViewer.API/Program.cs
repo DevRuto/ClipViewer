@@ -4,6 +4,7 @@ using ClipViewer.API.Interfaces;
 using ClipViewer.API.Middleware;
 using ClipViewer.API.Models;
 using ClipViewer.API.Services;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Xabe.FFmpeg;
@@ -76,13 +77,22 @@ var outputPath = Path.IsPathRooted(outputVideoFolder)
     ? outputVideoFolder
     : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
 
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".mp4"] = "video/mp4";
+contentTypeProvider.Mappings[".mov"] = "video/mov";
+contentTypeProvider.Mappings[".m3u8"] = "application/x-mpegURL";
+contentTypeProvider.Mappings[".mkv"] = "video/x-matroska";
+
 app.UseWhen(
-    context => context.Request.Path.StartsWithSegments(publicFilePath) &&
-               !context.Request.Path.StartsWithSegments($"{publicFilePath}/temp"),
+    context => context.Request.Path.StartsWithSegments(publicFilePath),
     clipBuilder =>
     {
         clipBuilder.UseStaticFiles(new StaticFileOptions
-            { FileProvider = new PhysicalFileProvider(outputPath), RequestPath = publicFilePath });
+        {
+            FileProvider = new PhysicalFileProvider(outputPath),
+            RequestPath = publicFilePath,
+            ContentTypeProvider = contentTypeProvider
+        });
     });
 
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
@@ -98,7 +108,8 @@ app.UseSpa(spaBuilder =>
 {
     spaBuilder.Options.SourcePath = spaPath;
 
-    if (app.Environment.IsDevelopment()) spaBuilder.UseProxyToSpaDevelopmentServer("http://localhost:5173");
+    if (app.Environment.IsDevelopment())
+        spaBuilder.UseProxyToSpaDevelopmentServer("http://localhost:5173");
 });
 
 app.Run();
