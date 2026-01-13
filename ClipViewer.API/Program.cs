@@ -37,9 +37,18 @@ builder.Services.AddHostedService<VideoConversionWorker>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// Add DbContext with in-memory database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseInMemoryDatabase("ClipViewerDb"));
+// Configure database based on environment
+if (builder.Environment.IsDevelopment() || builder.Environment.IsProduction())
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
+else
+{
+    // Use in-memory database for testing
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseInMemoryDatabase("ClipViewerDb"));
+}
 
 var app = builder.Build();
 

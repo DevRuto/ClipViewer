@@ -1,0 +1,58 @@
+# Build outputs
+**/bin
+**/obj
+**/publish
+**/dist
+
+# Node.js
+**/node_modules
+**/npm-debug.log
+**/yarn-debug.log
+**/yarn-error.log
+**/.npm
+**/.yarn
+**/.vite
+
+# Upload directories
+**/output
+**/Thumbnails
+**/HLS
+
+# Development and IDE files
+.vs/
+.vscode/
+.idea/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.sln.iml
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+# Logs and temp files
+*.log
+*.sql
+*.sqlite
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Don't exclude the Vue.js source code, we need it for building
+!clipviewer.vue/**/*
