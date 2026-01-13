@@ -1,4 +1,7 @@
 <script setup>
+import 'media-chrome'
+import 'hls-video-element'
+
 const props = defineProps({
   src: {
     type: String,

@@ -6,12 +6,18 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var activeVueRoutes = new[] { "/", "/clips" };
+        var activeVueRoutes = new[]
+        {
+            new PathString("/"),
+            new PathString("/clips")
+        };
+
         // Only process GET requests for the root or other SPA routes
         if (context.Request.Method == "GET" &&
             !Path.HasExtension(context.Request.Path.Value)
-            && activeVueRoutes.Contains(context.Request.Path.Value))
+            && activeVueRoutes.Any(route => context.Request.Path.StartsWithSegments(route)))
         {
+            Console.WriteLine(context.Request.Path.Value);
             var filePath = Path.Combine(spaPath, "index.html");
             if (File.Exists(filePath))
             {
