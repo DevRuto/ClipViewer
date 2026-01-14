@@ -60,13 +60,6 @@ public class ApplicationDbContext : DbContext
             var videos = db.VideoClips.FirstOrDefault();
             if (videos != null) return;
 
-            // 29f16672-c831-4c02-affa-060885ed2de0
-            var user = db.Users.Add(new User
-            {
-                Username = "ruto",
-                ApiKey = Guid.Parse("29f16672-c831-4c02-affa-060885ed2de0"),
-                CreatedAt = DateTime.UtcNow
-            });
             context.SaveChanges();
         });
     }
