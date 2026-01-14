@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ClipViewer.API.Data;
 using ClipViewer.API.Models.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,11 @@ public class VideosController(
     IConfiguration configuration,
     ApplicationDbContext context) : ControllerBase
 {
+    private readonly string _outputVideoFolder = configuration
+                                                     .GetSection("UploadOptions")
+                                                     .GetSection("OutputVideoFolder").Value
+                                                 ?? throw new InvalidOperationException();
+
     private readonly string _publicFilePath =
         configuration.GetSection("UploadOptions").GetSection("PublicFilePath").Value ?? "/files";
 
@@ -51,5 +57,49 @@ public class VideosController(
             .FirstOrDefaultAsync(v => v.VideoId == videoId);
         if (video == null) return NotFound();
         return VideoClipDto.FromEntity(video, _publicFilePath);
+    }
+
+    [Authorize]
+    [HttpDelete("{videoId}")]
+    public async Task<ActionResult<bool>> DeleteVideo(string videoId)
+    {
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return BadRequest("Unable to get user info");
+
+        var video = await context.VideoClips
+            .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId);
+        if (video == null) return NotFound();
+        context.VideoClips.Remove(video);
+        await context.SaveChangesAsync();
+        try
+        {
+            // Delete source file
+            var sourcePath = Path.Combine(_outputVideoFolder,
+                video.SourceVideoFile.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (System.IO.File.Exists(sourcePath))
+                System.IO.File.Delete(sourcePath);
+
+            // Delete thumbnail file
+            var thumbnailPath = Path.Combine(_outputVideoFolder,
+                video.Thumbnail.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (System.IO.File.Exists(thumbnailPath))
+                System.IO.File.Delete(thumbnailPath);
+
+            var baseHlsFolder =
+                Path.GetDirectoryName(video.HlsPlaylistFile.TrimStart(Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar));
+            if (!string.IsNullOrEmpty(baseHlsFolder))
+            {
+                var hlsFolder = Path.Combine(_outputVideoFolder, baseHlsFolder);
+                if (Directory.Exists(hlsFolder))
+                    Directory.Delete(hlsFolder, true);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Unable to delete files");
+        }
+
+        return true;
     }
 }
