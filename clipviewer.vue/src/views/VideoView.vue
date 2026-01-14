@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../services/api'
 import VideoPlayer from '../components/VideoPlayer.vue'
+import { formatDuration } from '../composables/useDuration.js'
 
 const route = useRoute()
 const video = ref(null)
@@ -41,7 +42,7 @@ onMounted(async () => {
 
       <div v-else-if="video" class="max-w-4xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <div class="aspect-video bg-black">
+          <div class="aspect-video">
             <video-player :src="videoSource" :placeholder="video.thumbnail" />
           </div>
 
@@ -52,7 +53,7 @@ onMounted(async () => {
                 <div class="bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium">
                   {{ video.author }}
                 </div>
-                <span>Duration: {{ video.duration }}</span>
+                <span>Duration: {{ formatDuration(video.duration) }}</span>
                 <span>Uploaded: {{ new Date(video.createdAt).toLocaleDateString() }}</span>
               </div>
               <a

@@ -1,4 +1,5 @@
 <script setup>
+import { formatDuration } from '../composables/useDuration.js'
 const { video } = defineProps(['video'])
 </script>
 
@@ -19,7 +20,7 @@ const { video } = defineProps(['video'])
     <div
       class="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded"
     >
-      {{ video.duration }}
+      {{ formatDuration(video.duration) }}
     </div>
   </div>
   <div class="p-4">
