@@ -92,6 +92,19 @@ public class ApplicationDbContext : DbContext
                     CreatedAt = DateTime.UtcNow,
                     Processed = true
                 });
+            user.Entity.VideoClips.Add(
+                new VideoClip
+                {
+                    VideoId = "hiddenvid",
+                    Name = "hidden Video",
+                    SourceVideoFile = "/source/e42Wkw.mp4",
+                    Thumbnail = "/thumbnails/test.jpg",
+                    HlsPlaylistFile = "/hls/e42Wkw/playlist.m3u8",
+                    Duration = TimeSpan.FromSeconds(10),
+                    CreatedAt = DateTime.UtcNow,
+                    Processed = true,
+                    Unlisted = true
+                });
             context.SaveChanges();
         });
     }

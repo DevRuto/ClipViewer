@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import ClipTile from './ClipTile.vue'
 import { api } from '../services/api'
@@ -11,14 +11,6 @@ const props = defineProps({
     type: String,
     default: null,
   },
-})
-
-onMounted(async () => {
-  try {
-    await fetchVideos()
-  } catch (error) {
-    console.error('Failed to fetch videos:', error)
-  }
 })
 
 async function fetchVideos() {

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ClipViewer.API.Data;
 using ClipViewer.API.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -17,12 +18,27 @@ public class VideosController(
     [HttpGet]
     public async Task<ActionResult<List<VideoClipDto>>> GetVideoList([FromQuery] string user = "")
     {
+        var currentUser = User.FindFirst(ClaimTypes.Name)?.Value;
+
         var videoQuery = context.VideoClips
             .Include(v => v.User)
             .AsQueryable();
+
         if (!string.IsNullOrEmpty(user))
-            videoQuery = videoQuery.Where(video =>
-                EF.Functions.ILike(video.User.Username, user));
+        {
+            videoQuery = videoQuery.Where(v =>
+                EF.Functions.ILike(v.User.Username, user));
+
+            // If viewer is NOT logged in, hide unlisted videos
+            if (string.IsNullOrEmpty(currentUser))
+                videoQuery = videoQuery.Where(v => !v.Unlisted);
+        }
+        else
+        {
+            // No user filter → only public videos
+            videoQuery = videoQuery.Where(v => !v.Unlisted);
+        }
+
         var videos = await videoQuery.OrderByDescending(video => video.CreatedAt).ToListAsync();
         return videos.Select(v => VideoClipDto.FromEntity(v, _publicFilePath)).ToList();
     }

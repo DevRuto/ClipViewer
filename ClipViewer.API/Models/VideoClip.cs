@@ -22,6 +22,7 @@ public class VideoClip
     public TimeSpan Duration { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool Processed { get; set; }
+    public bool Unlisted { get; set; }
 
     // User relationship
     [Required]
