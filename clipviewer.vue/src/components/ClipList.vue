@@ -1,17 +1,39 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import ClipTile from './ClipTile.vue'
 
 const videos = ref([])
 
+const props = defineProps({
+  username: {
+    type: String,
+    default: null,
+  },
+})
+
 onMounted(async () => {
   try {
-    videos.value = await fetch('/api/videos').then((res) => res.json())
+    await fetchVideos()
   } catch (error) {
     console.error('Failed to fetch videos:', error)
   }
 })
+
+async function fetchVideos() {
+  if (props.username) {
+    videos.value = await fetch(`/api/videos?username=${props.username}`).then((res) => res.json())
+  } else {
+    videos.value = await fetch('/api/videos').then((res) => res.json())
+  }
+}
+
+watch(
+  () => props.username,
+  () => {
+    fetchVideos()
+  },
+)
 </script>
 
 <template>

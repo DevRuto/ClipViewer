@@ -9,9 +9,15 @@ const router = createRouter({
       component: () => import('../views/HomeView.vue'),
     },
     {
+      path: '/browse',
+      name: 'browse',
+      component: () => import('../views/ClipsView.vue'),
+    },
+    {
       path: '/clips',
       name: 'clips',
       component: () => import('../views/ClipsView.vue'),
+      props: { self: true },
     },
     {
       path: '/clips/:videoId',

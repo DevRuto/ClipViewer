@@ -22,11 +22,18 @@ import ThemeSwitcher from './components/ThemeSwitcher.vue'
               Home
             </RouterLink>
             <RouterLink
-              to="/clips"
+              to="/browse"
               class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
               active-class="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
             >
               Clips
+            </RouterLink>
+            <RouterLink
+              to="/clips"
+              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              active-class="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+            >
+              Your Clips
             </RouterLink>
             <ThemeSwitcher />
           </div>

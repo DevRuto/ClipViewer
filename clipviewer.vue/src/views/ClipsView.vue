@@ -1,11 +1,20 @@
 <script setup>
 import ClipList from '../components/ClipList.vue'
+
+defineProps({
+  self: {
+    type: Boolean,
+    default: false,
+  },
+})
 </script>
 
 <template>
   <div class="min-h-screen">
     <div class="container mx-auto px-4 py-8">
-      <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Your Clips</h1>
+      <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">
+        {{ self ? 'Your Clips' : 'Browse Clips' }}
+      </h1>
 
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
@@ -17,7 +26,7 @@ import ClipList from '../components/ClipList.vue'
           </button>
         </div>
 
-        <ClipList />
+        <ClipList :username="self ? undefined : 'asdf'" />
       </div>
     </div>
   </div>

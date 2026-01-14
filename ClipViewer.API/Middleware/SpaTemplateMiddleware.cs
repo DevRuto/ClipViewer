@@ -9,6 +9,7 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
         var activeVueRoutes = new[]
         {
             new PathString("/"),
+            new PathString("/browse"),
             new PathString("/clips")
         };
 
