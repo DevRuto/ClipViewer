@@ -1,5 +1,6 @@
 <script setup>
 import { formatDuration } from '../composables/useDuration.js'
+
 const { video } = defineProps(['video'])
 </script>
 
@@ -24,7 +25,9 @@ const { video } = defineProps(['video'])
     </div>
   </div>
   <div class="p-4">
-    <h3 class="font-semibold text-gray-800 dark:text-white truncate mb-1">{{ video.name }}</h3>
+    <h3 class="font-semibold text-gray-800 dark:text-white truncate mb-1">
+      {{ video.name }}
+    </h3>
     <div class="flex items-center justify-between">
       <p class="text-sm text-gray-500 dark:text-gray-400">
         {{ new Date(video.createdAt).toLocaleDateString() }}
