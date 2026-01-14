@@ -22,13 +22,15 @@ onMounted(async () => {
 })
 
 async function fetchVideos() {
-  const res = await api.get(`/api/videos?username=${props.username || ''}`)
+  const usernameParam = props.username ? `?user=${props.username}` : ''
+  const res = await api.get(`/api/videos${usernameParam}`)
   videos.value = res.data
 }
 
 watch(
   () => props.username,
   () => {
+    videos.value = []
     fetchVideos()
   },
 )

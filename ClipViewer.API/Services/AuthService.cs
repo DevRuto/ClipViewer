@@ -31,7 +31,7 @@ public class AuthService : IAuthService
 
         var user = new User
         {
-            Username = request.Username,
+            Username = request.Username.ToLower(),
             ApiKey = apiKey,
             CreatedAt = DateTime.UtcNow
         };

@@ -15,16 +15,20 @@ public class VideosController(
         configuration.GetSection("UploadOptions").GetSection("PublicFilePath").Value ?? "/files";
 
     [HttpGet]
-    public async Task<ActionResult<List<VideoClipDto>>> Get()
+    public async Task<ActionResult<List<VideoClipDto>>> GetVideoList([FromQuery] string user = "")
     {
-        var videos = await context.VideoClips
+        var videoQuery = context.VideoClips
             .Include(v => v.User)
-            .ToListAsync();
+            .AsQueryable();
+        if (!string.IsNullOrEmpty(user))
+            videoQuery = videoQuery.Where(video =>
+                EF.Functions.ILike(video.User.Username, user));
+        var videos = await videoQuery.OrderByDescending(video => video.CreatedAt).ToListAsync();
         return videos.Select(v => VideoClipDto.FromEntity(v, _publicFilePath)).ToList();
     }
 
     [HttpGet("{videoId}")]
-    public async Task<ActionResult<VideoClipDto>> Get(string videoId)
+    public async Task<ActionResult<VideoClipDto>> GetVideo(string videoId)
     {
         var video = await context.VideoClips
             .Include(v => v.User)
