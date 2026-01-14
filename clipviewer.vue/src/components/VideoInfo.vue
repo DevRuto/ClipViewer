@@ -1,11 +1,39 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 
+// Debounce utility function
+function debounce(fn, delay) {
+  let timeoutId
+  return function (...args) {
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => fn.apply(this, args), delay)
+  }
+}
+
 const props = defineProps(['video', 'videoPlayer'])
+const emit = defineEmits(['update-video'])
 
 const includeTimestamp = ref(false)
 const currentTime = ref(0)
+
+const { user } = useAuth()
+const ownsVideo = computed(() => user.value?.username === props.video.author)
+const unlisted = ref(props.video.unlisted)
+const name = ref(props.video.name)
+
+// Watch for changes and emit to parent
+watch(unlisted, (newValue) => {
+  emit('update-video', { ...props.video, unlisted: newValue })
+})
+
+// Debounced name watcher
+const debouncedNameUpdate = debounce((newValue) => {
+  emit('update-video', { ...props.video, name: newValue })
+}, 500)
+
+watch(name, debouncedNameUpdate)
 
 function copyLink() {
   let url = new URL(window.location.href)
@@ -31,10 +59,32 @@ watch(
 
 <template>
   <div class="p-6">
+    <div v-if="ownsVideo" class="mb-4 space-y-3">
+      <!-- Editable title -->
+      <input
+        v-model="name"
+        class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 focus:outline-none transition-colors break-words line-clamp-2 sm:line-clamp-3"
+        placeholder="Video title"
+      />
+
+      <!-- Unlisted checkbox -->
+      <label
+        class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none"
+      >
+        <input
+          type="checkbox"
+          v-model="unlisted"
+          class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+        />
+        <span>Unlisted</span>
+      </label>
+    </div>
+
     <h1
+      v-else
       class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white break-words line-clamp-2 sm:line-clamp-3"
     >
-      {{ video.name }}
+      {{ name }}
     </h1>
     <div class="block my-4 border-t border-gray-200 dark:border-gray-700"></div>
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">

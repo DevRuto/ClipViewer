@@ -16,6 +16,7 @@ public class VideoClipDto
     public DateTime CreatedAt { get; set; }
     public bool Processed { get; set; }
     public string Author { get; set; } = string.Empty;
+    public bool Unlisted { get; set; }
 
     // Add a static method to map from entity to DTO
     public static VideoClipDto FromEntity(VideoClip entity, string publicFilePath = "")
@@ -31,7 +32,8 @@ public class VideoClipDto
             Duration = entity.Duration,
             CreatedAt = entity.CreatedAt,
             Processed = entity.Processed,
-            Author = entity.User.Username
+            Author = entity.User.Username,
+            Unlisted = entity.Unlisted
         };
     }
 }

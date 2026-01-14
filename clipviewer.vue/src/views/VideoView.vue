@@ -36,6 +36,17 @@ function onVideoLoaded() {
     videoPlayer.value.goToTime(route.query.t)
   }
 }
+
+async function updateVideo(updatedVideo) {
+  const response = await api.put(`/api/videos/${route.params.videoId}`, {
+    unlisted: updatedVideo.unlisted,
+    name: updatedVideo.name,
+  })
+
+  if (response.status === 200) {
+    video.value = response.data
+  }
+}
 </script>
 
 <template>
@@ -58,7 +69,7 @@ function onVideoLoaded() {
               @loaded="onVideoLoaded"
             />
           </div>
-          <VideoInfo :video="video" :videoPlayer="videoPlayer" />
+          <VideoInfo :video="video" :videoPlayer="videoPlayer" @update-video="updateVideo" />
         </div>
       </div>
 
