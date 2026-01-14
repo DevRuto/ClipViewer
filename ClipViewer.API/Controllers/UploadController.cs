@@ -12,6 +12,15 @@ public class UploadController(
     IVideoJobQueue videoJobQueue)
     : ControllerBase
 {
+    private static readonly Dictionary<string, string> VideoExtensions = new()
+    {
+        ["video/mp4"] = ".mp4",
+        ["video/webm"] = ".webm",
+        ["video/quicktime"] = ".mov",
+        ["video/x-msvideo"] = ".avi",
+        ["video/x-matroska"] = ".mkv"
+    };
+
     private readonly string _outputVideoFolder = configuration
                                                      .GetSection("UploadOptions")
                                                      .GetSection("OutputVideoFolder").Value
@@ -24,19 +33,20 @@ public class UploadController(
 
     [HttpPost]
     [Authorize]
-    [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
-    public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromHeader(Name = "X-Api-Key")] Guid apiKey)
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> Upload(
+        [FromHeader(Name = "Content-Type")] string contentType, [FromHeader(Name = "X-Api-Key")] Guid apiKey)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
         // Validate media
-        var supportedExtensions = new[] { ".mp4", ".mkv", ".avi", ".mov" };
-        if (!supportedExtensions.Contains(Path.GetExtension(file.FileName), StringComparer.OrdinalIgnoreCase))
-            return BadRequest("Unsupported file type");
+        if (!VideoExtensions.TryGetValue(contentType, out var extension))
+            return BadRequest("Unsupported video type");
 
         // Save to temp folder
-        var filePath = Path.Combine(_tempVideoFolder, $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}");
+        var filePath = Path.Combine(_tempVideoFolder, $"{Guid.NewGuid()}{extension}");
         await using var fileStream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(fileStream);
+        await Request.Body.CopyToAsync(fileStream);
 
         // Process file
         var jobId = Guid.NewGuid();
