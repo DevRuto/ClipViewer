@@ -67,44 +67,6 @@ public class ApplicationDbContext : DbContext
                 ApiKey = Guid.Parse("29f16672-c831-4c02-affa-060885ed2de0"),
                 CreatedAt = DateTime.UtcNow
             });
-            for (var i = 0; i < 3; i++)
-                user.Entity.VideoClips.Add(
-                    new VideoClip
-                    {
-                        VideoId = "testvid" + i,
-                        Name = $"Test Video {i}",
-                        SourceVideoFile = "/source/e42Wkw.mp4",
-                        Thumbnail = "/thumbnails/test.jpg",
-                        HlsPlaylistFile = "/hls/e42Wkw/playlist.m3u8",
-                        Duration = TimeSpan.FromSeconds(10),
-                        CreatedAt = DateTime.UtcNow,
-                        Processed = true
-                    });
-            user.Entity.VideoClips.Add(
-                new VideoClip
-                {
-                    VideoId = "mkvtest",
-                    Name = "Test mkv",
-                    SourceVideoFile = "/source/pOMmg.mkv",
-                    Thumbnail = "/thumbnails/pOMmg.jpg",
-                    HlsPlaylistFile = "/hls/pOMmg/playlist.m3u8",
-                    Duration = TimeSpan.FromSeconds(598),
-                    CreatedAt = DateTime.UtcNow,
-                    Processed = true
-                });
-            user.Entity.VideoClips.Add(
-                new VideoClip
-                {
-                    VideoId = "hiddenvid",
-                    Name = "hidden Video",
-                    SourceVideoFile = "/source/e42Wkw.mp4",
-                    Thumbnail = "/thumbnails/test.jpg",
-                    HlsPlaylistFile = "/hls/e42Wkw/playlist.m3u8",
-                    Duration = TimeSpan.FromSeconds(10),
-                    CreatedAt = DateTime.UtcNow,
-                    Processed = true,
-                    Unlisted = true
-                });
             context.SaveChanges();
         });
     }
