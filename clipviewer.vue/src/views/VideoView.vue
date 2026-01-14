@@ -8,6 +8,7 @@ import { formatDuration } from '../composables/useDuration.js'
 const route = useRoute()
 const video = ref(null)
 const loading = ref(true)
+const videoPlayer = ref(null)
 
 const videoSource = computed(() => {
   if (video.value?.hlsPlaylistFile) {
@@ -28,6 +29,13 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+function onVideoLoaded() {
+  // Check if param time is set
+  if (route.query.t) {
+    videoPlayer.value.goToTime(route.query.t)
+  }
+}
 </script>
 
 <template>
@@ -43,7 +51,12 @@ onMounted(async () => {
       <div v-else-if="video" class="max-w-4xl mx-auto">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
           <div class="aspect-video">
-            <video-player :src="videoSource" :placeholder="video.thumbnail" />
+            <VideoPlayer
+              ref="videoPlayer"
+              :src="videoSource"
+              :placeholder="video.thumbnail"
+              @loaded="onVideoLoaded"
+            />
           </div>
 
           <div class="p-6">
