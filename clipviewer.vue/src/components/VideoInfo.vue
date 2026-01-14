@@ -40,6 +40,10 @@ function toggleEdit() {
   isEditing.value = !isEditing.value
 }
 
+function handleEnterKey() {
+  isEditing.value = false
+}
+
 function copyLink() {
   let url = new URL(window.location.href)
 
@@ -94,6 +98,7 @@ watch(
           class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 hover:border-gray-400 dark:hover:border-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none transition-colors break-words line-clamp-2 sm:line-clamp-3"
           placeholder="Video title"
           @blur="isEditing = false"
+          @keydown.enter="handleEnterKey"
         />
         <h1
           v-else
