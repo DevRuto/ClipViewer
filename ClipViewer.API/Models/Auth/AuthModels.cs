@@ -14,15 +14,3 @@ public class RegisterResponse
     public string Username { get; set; } = string.Empty;
     public Guid ApiKey { get; set; } = Guid.Empty;
 }
-
-public class LoginRequest
-{
-    [Required]
-    public Guid ApiKey { get; set; } = Guid.Empty;
-}
-
-public class LoginResponse
-{
-    public string Token { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
-}

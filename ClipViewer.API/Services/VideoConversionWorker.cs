@@ -50,7 +50,8 @@ public partial class VideoConversionWorker(
             HlsPlaylistFile = string.Empty,
             Processed = false,
             Duration = videoInfo.Duration,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            UserId = job.AuthorId
         };
         await dbContext.VideoClips.AddAsync(dbVideo, stoppingToken);
         await dbContext.SaveChangesAsync(stoppingToken);
