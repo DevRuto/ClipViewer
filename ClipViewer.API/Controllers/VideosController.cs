@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using ClipViewer.API.Data;
+using ClipViewer.API.Models;
 using ClipViewer.API.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -56,6 +57,24 @@ public class VideosController(
             .Include(v => v.User)
             .FirstOrDefaultAsync(v => v.VideoId == videoId);
         if (video == null) return NotFound();
+        return VideoClipDto.FromEntity(video, _publicFilePath);
+    }
+
+    [Authorize]
+    [HttpPut("{videoId}")]
+    public async Task<ActionResult<VideoClipDto>> EditVideo(string videoId, [FromBody] VideoRequest request)
+    {
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return BadRequest("Unable to get user info");
+
+        var video = await context.VideoClips
+            .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId);
+
+        if (video == null) return NotFound();
+
+        video.Name = request.Name;
+        video.Unlisted = request.Unlisted;
+        await context.SaveChangesAsync();
         return VideoClipDto.FromEntity(video, _publicFilePath);
     }
 
