@@ -1,5 +1,5 @@
 using ClipViewer.API.Data;
-using ClipViewer.API.Models;
+using ClipViewer.API.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,27 +15,21 @@ public class VideosController(
         configuration.GetSection("UploadOptions").GetSection("PublicFilePath").Value ?? "/files";
 
     [HttpGet]
-    public async Task<ActionResult<List<VideoClip>>> Get()
+    public async Task<ActionResult<List<VideoClipDto>>> Get()
     {
-        var videos = await context.VideoClips.ToListAsync();
-        foreach (var video in videos)
-        {
-            video.SourceVideoFile = $"{_publicFilePath}{video.SourceVideoFile}";
-            video.Thumbnail = $"{_publicFilePath}{video.Thumbnail}";
-            video.HlsPlaylistFile = $"{_publicFilePath}{video.HlsPlaylistFile}";
-        }
-
-        return videos;
+        var videos = await context.VideoClips
+            .Include(v => v.User)
+            .ToListAsync();
+        return videos.Select(v => VideoClipDto.FromEntity(v, _publicFilePath)).ToList();
     }
 
     [HttpGet("{videoId}")]
-    public async Task<ActionResult<VideoClip>> Get(string videoId)
+    public async Task<ActionResult<VideoClipDto>> Get(string videoId)
     {
-        var video = await context.VideoClips.FirstOrDefaultAsync(v => v.VideoId == videoId);
+        var video = await context.VideoClips
+            .Include(v => v.User)
+            .FirstOrDefaultAsync(v => v.VideoId == videoId);
         if (video == null) return NotFound();
-        video.SourceVideoFile = $"{_publicFilePath}{video.SourceVideoFile}";
-        video.Thumbnail = $"{_publicFilePath}{video.Thumbnail}";
-        video.HlsPlaylistFile = $"{_publicFilePath}{video.HlsPlaylistFile}";
-        return video;
+        return VideoClipDto.FromEntity(video, _publicFilePath);
     }
 }

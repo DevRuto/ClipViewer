@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import ClipTile from './ClipTile.vue'
 
 const videos = ref([])
 
@@ -24,31 +25,7 @@ onMounted(async () => {
       :to="`/clips/${video.videoId}`"
       class="group block bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200"
     >
-      <div class="aspect-video relative overflow-hidden bg-gray-200 dark:bg-gray-700">
-        <img
-          v-if="video.thumbnail"
-          :src="video.thumbnail"
-          :alt="video.name"
-          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-        />
-        <img
-          v-else
-          src=""
-          :alt="video.name"
-          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-        />
-        <div
-          class="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded"
-        >
-          {{ video.duration }}
-        </div>
-      </div>
-      <div class="p-4">
-        <h3 class="font-semibold text-gray-800 dark:text-white truncate mb-1">{{ video.name }}</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          {{ new Date(video.createdAt).toLocaleDateString() }}
-        </p>
-      </div>
+      <ClipTile :video="video" />
     </RouterLink>
   </div>
   <div v-else class="text-center py-12">

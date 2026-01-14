@@ -29,7 +29,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+  <div class="min-h-screen">
     <div class="container mx-auto px-4 py-8">
       <div v-if="loading" class="text-center py-12">
         <div
@@ -47,6 +47,9 @@ onMounted(async () => {
           <div class="p-6">
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">{{ video.name }}</h1>
             <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
+              <div class="bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium">
+                {{ video.author }}
+              </div>
               <span>Duration: {{ video.duration }}</span>
               <span>Uploaded: {{ new Date(video.createdAt).toLocaleDateString() }}</span>
             </div>
