@@ -3,22 +3,27 @@ import { ref, onMounted } from 'vue'
 import 'media-chrome'
 import 'hls-video-element'
 
+const refVideo = ref(null)
+const currentTime = ref(0)
+
 const props = defineProps({
   src: {
     type: String,
     required: true,
   },
 })
+
 defineExpose({
   goToTime,
+  currentTime,
 })
 const emit = defineEmits(['loaded'])
 
-const refVideo = ref(null)
 const isHLS = props.src.toLocaleLowerCase().endsWith('.m3u8')
 
 onMounted(() => {
   refVideo.value.addEventListener('loadeddata', onLoaded)
+  refVideo.value.addEventListener('timeupdate', onTimeUpdate)
 })
 
 function goToTime(time) {
@@ -27,6 +32,10 @@ function goToTime(time) {
 
 function onLoaded() {
   emit('loaded')
+}
+
+function onTimeUpdate() {
+  currentTime.value = refVideo.value.currentTime
 }
 </script>
 

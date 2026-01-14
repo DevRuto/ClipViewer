@@ -1,10 +1,32 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { formatDuration } from '@/composables/useDuration.js'
 
-defineProps(['video'])
+const props = defineProps(['video', 'videoPlayer'])
 
 const includeTimestamp = ref(false)
+const currentTime = ref(0)
+
+function copyLink() {
+  let url = new URL(window.location.href)
+
+  if (includeTimestamp.value) {
+    url.searchParams.set('t', currentTime.value)
+  } else {
+    url.searchParams.delete('t')
+  }
+
+  navigator.clipboard.writeText(url.toString())
+}
+
+watch(
+  () => props.videoPlayer?.currentTime,
+  () => {
+    if (props.videoPlayer) {
+      currentTime.value = Math.floor(props.videoPlayer.currentTime)
+    }
+  },
+)
 </script>
 
 <template>
@@ -29,7 +51,7 @@ const includeTimestamp = ref(false)
         <!-- Copy button -->
         <button
           @click="copyLink"
-          class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium text-gray-700 dark:text-white transition"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium text-gray-700 dark:text-white transition cursor-pointer"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -46,6 +68,7 @@ const includeTimestamp = ref(false)
             />
           </svg>
           Copy Link
+          <span v-if="includeTimestamp">{{ formatDuration(currentTime) }}</span>
         </button>
 
         <!-- Timestamp toggle -->

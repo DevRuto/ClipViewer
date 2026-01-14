@@ -58,7 +58,7 @@ function onVideoLoaded() {
               @loaded="onVideoLoaded"
             />
           </div>
-          <VideoInfo :video="video" />
+          <VideoInfo :video="video" :videoPlayer="videoPlayer" />
         </div>
       </div>
 
