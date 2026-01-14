@@ -50,10 +50,12 @@ public class UploadController(
 
         // Process file
         var jobId = Guid.NewGuid();
-        var filename =
+        var videoId =
             await videoJobQueue.EnqueueAsync(new VideoConversionJob(int.Parse(userId), filePath, _outputVideoFolder,
                 jobId));
 
-        return Accepted(new { jobId, filename });
+
+        var filename = $"{videoId}{extension}";
+        return Accepted(new { jobId, filename, videoId });
     }
 }
