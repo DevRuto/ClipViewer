@@ -1,5 +1,5 @@
 import { ref, computed, readonly } from 'vue'
-import { api } from '../services/api'
+import { api } from '@/services/api'
 
 const user = ref(null)
 const apiKey = ref(localStorage.getItem('apiKey') || '')

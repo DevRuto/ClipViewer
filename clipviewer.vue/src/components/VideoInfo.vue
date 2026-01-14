@@ -1,5 +1,5 @@
 <script setup>
-import { formatDuration } from '../composables/useDuration.js'
+import { formatDuration } from '@/composables/useDuration.js'
 const longTitleTest =
   'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 

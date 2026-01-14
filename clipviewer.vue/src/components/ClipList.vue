@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import ClipTile from './ClipTile.vue'
-import { api } from '../services/api'
+import { api } from '@/services/api'
 
 const videos = ref([])
 

@@ -1,9 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from '../services/api'
-import VideoPlayer from '../components/VideoPlayer.vue'
-import VideoInfo from '../components/VideoInfo.vue'
+import { api } from '@/services/api'
+import VideoPlayer from '@/components/VideoPlayer.vue'
+import VideoInfo from '@/components/VideoInfo.vue'
 
 const route = useRoute()
 const video = ref(null)

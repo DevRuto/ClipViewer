@@ -1,7 +1,7 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
-import ThemeSwitcher from './components/ThemeSwitcher.vue'
-import { useAuth } from './composables/useAuth'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
+import { useAuth } from '@/composables/useAuth'
 import { onMounted } from 'vue'
 
 const { user, isAuthenticated, logout, checkAuth } = useAuth()
