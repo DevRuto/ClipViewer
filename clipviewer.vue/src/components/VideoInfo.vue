@@ -22,6 +22,7 @@ const { user } = useAuth()
 const ownsVideo = computed(() => user.value?.username === props.video.author)
 const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
+const isEditing = ref(false)
 
 // Watch for changes and emit to parent
 watch(unlisted, (newValue) => {
@@ -34,6 +35,10 @@ const debouncedNameUpdate = debounce((newValue) => {
 }, 500)
 
 watch(name, debouncedNameUpdate)
+
+function toggleEdit() {
+  isEditing.value = !isEditing.value
+}
 
 function copyLink() {
   let url = new URL(window.location.href)
@@ -60,12 +65,44 @@ watch(
 <template>
   <div class="p-6">
     <div v-if="ownsVideo" class="mb-4 space-y-3">
-      <!-- Editable title -->
-      <input
-        v-model="name"
-        class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white bg-transparent border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-blue-500 focus:outline-none transition-colors break-words line-clamp-2 sm:line-clamp-3"
-        placeholder="Video title"
-      />
+      <!-- Editable title with toggle icon -->
+      <div class="flex items-center gap-2">
+        <!-- Edit toggle button -->
+        <button
+          @click="toggleEdit"
+          class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          :class="{
+            'text-blue-500': isEditing,
+            'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300': !isEditing,
+          }"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            ></path>
+          </svg>
+        </button>
+
+        <!-- Title display or input -->
+        <input
+          v-if="isEditing"
+          v-model="name"
+          ref="titleInput"
+          class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 hover:border-gray-400 dark:hover:border-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none transition-colors break-words line-clamp-2 sm:line-clamp-3"
+          placeholder="Video title"
+          @blur="isEditing = false"
+        />
+        <h1
+          v-else
+          class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white break-words line-clamp-2 sm:line-clamp-3 cursor-text hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          @click="toggleEdit"
+        >
+          {{ name }}
+        </h1>
+      </div>
 
       <!-- Unlisted checkbox -->
       <label
