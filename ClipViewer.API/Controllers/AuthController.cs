@@ -8,22 +8,15 @@ namespace ClipViewer.API.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController : ControllerBase
+public class AuthController(IAuthService authService) : ControllerBase
 {
-    private readonly IAuthService _authService;
-
-    public AuthController(IAuthService authService)
-    {
-        _authService = authService;
-    }
-
     [HttpPost("register")]
     [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
         try
         {
-            var result = await _authService.RegisterUserAsync(request);
+            var result = await authService.RegisterUserAsync(request);
             return Ok(result);
         }
         catch (InvalidOperationException ex)

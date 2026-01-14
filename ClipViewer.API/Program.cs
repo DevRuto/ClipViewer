@@ -4,6 +4,7 @@ using ClipViewer.API.Interfaces;
 using ClipViewer.API.Middleware;
 using ClipViewer.API.Models;
 using ClipViewer.API.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -82,6 +83,13 @@ else
     app.UseMiddleware<SpaTemplateMiddleware>(spaPath);
 
 // app.UseHttpsRedirection();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders =
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost
+});
 
 app.UseRouting();
 
