@@ -13,7 +13,7 @@ function debounce(fn, delay) {
 }
 
 const props = defineProps(['video', 'videoPlayer'])
-const emit = defineEmits(['update-video'])
+const emit = defineEmits(['update-video', 'delete-video'])
 
 const includeTimestamp = ref(false)
 const currentTime = ref(0)
@@ -23,6 +23,7 @@ const ownsVideo = computed(() => user.value?.username === props.video.author)
 const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
 const isEditing = ref(false)
+const showDeleteModal = ref(false)
 
 // Watch for changes and emit to parent
 watch(unlisted, (newValue) => {
@@ -54,6 +55,19 @@ function copyLink() {
   }
 
   navigator.clipboard.writeText(url.toString())
+}
+
+function handleDelete() {
+  showDeleteModal.value = true
+}
+
+function confirmDelete() {
+  emit('delete-video', props.video)
+  showDeleteModal.value = false
+}
+
+function cancelDelete() {
+  showDeleteModal.value = false
 }
 
 watch(
@@ -120,6 +134,22 @@ watch(
         />
         <span>Unlisted</span>
       </label>
+
+      <!-- Delete button -->
+      <button
+        @click="handleDelete"
+        class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          ></path>
+        </svg>
+        Delete Video
+      </button>
     </div>
 
     <h1
@@ -194,6 +224,55 @@ watch(
           </svg>
           Download
         </a>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div
+      v-if="showDeleteModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      @click="cancelDelete"
+    >
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-4 shadow-xl" @click.stop>
+        <div class="flex items-center gap-3 mb-4">
+          <div
+            class="flex-shrink-0 w-10 h-10 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center"
+          >
+            <svg
+              class="w-5 h-5 text-red-600 dark:text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              ></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Delete Video</h3>
+        </div>
+
+        <p class="text-gray-600 dark:text-gray-300 mb-6">
+          Are you sure you want to delete this video? This action cannot be undone.
+        </p>
+
+        <div class="flex gap-3 justify-end">
+          <button
+            @click="cancelDelete"
+            class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="confirmDelete"
+            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </div>
   </div>

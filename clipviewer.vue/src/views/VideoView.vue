@@ -1,11 +1,12 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import VideoInfo from '@/components/VideoInfo.vue'
 
 const route = useRoute()
+const router = useRouter()
 const video = ref(null)
 const loading = ref(true)
 const videoPlayer = ref(null)
@@ -47,6 +48,14 @@ async function updateVideo(updatedVideo) {
     video.value = response.data
   }
 }
+
+async function deleteVideo() {
+  const response = await api.delete(`/api/videos/${route.params.videoId}`)
+
+  if (response.status === 200) {
+    router.push('/browse')
+  }
+}
 </script>
 
 <template>
@@ -69,7 +78,12 @@ async function updateVideo(updatedVideo) {
               @loaded="onVideoLoaded"
             />
           </div>
-          <VideoInfo :video="video" :videoPlayer="videoPlayer" @update-video="updateVideo" />
+          <VideoInfo
+            :video="video"
+            :videoPlayer="videoPlayer"
+            @update-video="updateVideo"
+            @delete-video="deleteVideo"
+          />
         </div>
       </div>
 
