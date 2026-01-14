@@ -38,7 +38,7 @@ RUN mkdir -p /clipviewer.vue/dist
 
 # Copy the published app and Vue.js files
 COPY --from=build /app/publish .
-COPY --from=build /src/clipviewer.vue/dist /clipviewer.vue/dist
+COPY --from=node-build /src/clipviewer.vue/dist /clipviewer.vue/dist
 
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:80
