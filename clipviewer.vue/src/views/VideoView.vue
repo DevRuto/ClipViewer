@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { api } from '../services/api'
 import VideoPlayer from '../components/VideoPlayer.vue'
 
 const route = useRoute()
@@ -16,9 +17,9 @@ const videoSource = computed(() => {
 
 onMounted(async () => {
   try {
-    const response = await fetch(`/api/videos/${route.params.videoId}`)
-    if (response.ok) {
-      video.value = await response.json()
+    const response = await api.get(`/api/videos/${route.params.videoId}`)
+    if (response.status === 200) {
+      video.value = response.data
     }
   } catch (error) {
     console.error('Failed to fetch video:', error)
@@ -91,7 +92,7 @@ onMounted(async () => {
         <p class="text-gray-500 dark:text-gray-400 text-lg mb-2">Video not found</p>
         <p class="text-gray-400 dark:text-gray-500">The video you're looking for doesn't exist.</p>
         <RouterLink
-          to="/clips"
+          to="/browse"
           class="mt-4 inline-block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
         >
           ← Back to clips

@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import ClipTile from './ClipTile.vue'
+import { api } from '../services/api'
 
 const videos = ref([])
 
@@ -21,11 +22,8 @@ onMounted(async () => {
 })
 
 async function fetchVideos() {
-  if (props.username) {
-    videos.value = await fetch(`/api/videos?username=${props.username}`).then((res) => res.json())
-  } else {
-    videos.value = await fetch('/api/videos').then((res) => res.json())
-  }
+  const res = await api.get(`/api/videos?username=${props.username || ''}`)
+  videos.value = res.data
 }
 
 watch(

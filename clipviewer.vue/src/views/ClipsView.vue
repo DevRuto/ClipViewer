@@ -1,19 +1,35 @@
 <script setup>
+import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import ClipList from '../components/ClipList.vue'
 
-defineProps({
-  self: {
-    type: Boolean,
-    default: false,
-  },
+const route = useRoute()
+
+const isBrowsePage = ref(false)
+const username = ref('')
+
+function init() {
+  username.value = route.params.username
+  isBrowsePage.value = route.name === 'browse'
+}
+
+onMounted(() => {
+  init()
 })
+
+watch(
+  () => route.params.username,
+  () => {
+    init()
+  },
+)
 </script>
 
 <template>
   <div class="min-h-screen">
     <div class="container mx-auto px-4 py-8">
       <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">
-        {{ self ? 'Your Clips' : 'Browse Clips' }}
+        {{ isBrowsePage ? 'Browse Clips' : 'Your Clips' }}
       </h1>
 
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
@@ -26,7 +42,7 @@ defineProps({
           </button>
         </div>
 
-        <ClipList :username="self ? undefined : 'asdf'" />
+        <ClipList :username="username" />
       </div>
     </div>
   </div>

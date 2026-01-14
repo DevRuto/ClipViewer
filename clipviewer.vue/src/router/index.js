@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -14,10 +15,15 @@ const router = createRouter({
       component: () => import('../views/ClipsView.vue'),
     },
     {
-      path: '/clips',
-      name: 'clips',
+      path: '/users/:username',
+      name: 'user-clips',
       component: () => import('../views/ClipsView.vue'),
-      props: { self: true },
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
     },
     {
       path: '/clips/:videoId',
@@ -25,6 +31,27 @@ const router = createRouter({
       component: () => import('../views/VideoView.vue'),
     },
   ],
+})
+
+router.beforeEach(async (to, from, next) => {
+  const { checkAuth, isAuthenticated } = useAuth()
+
+  if (to.meta.requiresAuth) {
+    if (!isAuthenticated.value) {
+      const isValid = await checkAuth()
+      if (!isValid) {
+        next('/login')
+        return
+      }
+    }
+  }
+
+  if (to.name === 'login' && isAuthenticated.value) {
+    next('/clips')
+    return
+  }
+
+  next()
 })
 
 export default router
