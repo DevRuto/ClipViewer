@@ -11,7 +11,7 @@ const loading = ref(true)
 const videoPlayer = ref(null)
 
 const videoSource = computed(() => {
-  if (video.value?.hlsPlaylistFile) {
+  if (video.value?.processed) {
     return video.value.hlsPlaylistFile
   }
   return video.value?.sourceVideoFile
