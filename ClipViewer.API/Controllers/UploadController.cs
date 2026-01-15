@@ -35,7 +35,9 @@ public class UploadController(
     [Authorize]
     [DisableRequestSizeLimit]
     public async Task<IActionResult> Upload(
-        [FromHeader(Name = "Content-Type")] string contentType, [FromHeader(Name = "X-Api-Key")] Guid apiKey)
+        [FromHeader(Name = "Content-Type")] string contentType,
+        [FromHeader(Name = "X-Api-Key")] Guid apiKey,
+        [FromQuery] string? name = "")
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -50,9 +52,12 @@ public class UploadController(
 
         // Process file
         var jobId = Guid.NewGuid();
+        var conversionJob = new VideoConversionJob(int.Parse(userId), filePath, _outputVideoFolder,
+            jobId);
+        if (!string.IsNullOrEmpty(name))
+            conversionJob.Name = name;
         var videoId =
-            await videoJobQueue.EnqueueAsync(new VideoConversionJob(int.Parse(userId), filePath, _outputVideoFolder,
-                jobId));
+            await videoJobQueue.EnqueueAsync(conversionJob);
 
 
         var filename = $"{videoId}{extension}";

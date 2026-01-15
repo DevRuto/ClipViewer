@@ -65,15 +65,19 @@ async function uploadVideo() {
   uploadProgress.value = 0
 
   try {
-    const response = await api.post('/api/upload', file.value, {
-      headers: {
-        'Content-Type': file.value.type,
+    const response = await api.post(
+      `/api/upload?name=${encodeURIComponent(videoName.value.trim())}`,
+      file.value,
+      {
+        headers: {
+          'Content-Type': file.value.type,
+        },
+        onUploadProgress: (progressEvent) => {
+          uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        },
+        timeout: undefined,
       },
-      onUploadProgress: (progressEvent) => {
-        uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-      },
-      timeout: undefined,
-    })
+    )
 
     if (response.status === 202) {
       // Redirect to the uploaded video page

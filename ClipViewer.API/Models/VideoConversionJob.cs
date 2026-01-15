@@ -7,6 +7,7 @@ public class VideoConversionJob(int authorId, string inputPath, string outputDir
     public string OutputDirectory { get; } = outputDirectory;
     public Guid JobId { get; } = jobId;
     public int AuthorId { get; set; } = authorId;
+    public string? Name { get; set; }
 
     public override string ToString()
     {

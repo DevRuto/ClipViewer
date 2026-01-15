@@ -23,7 +23,7 @@ public partial class VideoJobQueue(
         var dbVideo = new VideoClip
         {
             VideoId = job.VideoId,
-            Name = job.VideoId,
+            Name = string.IsNullOrEmpty(job.Name) ? job.VideoId : job.Name,
             SourceVideoFile = $"/source/{job.VideoId}{Path.GetExtension(job.InputPath)}",
             Thumbnail = string.Empty,
             HlsPlaylistFile = string.Empty,
