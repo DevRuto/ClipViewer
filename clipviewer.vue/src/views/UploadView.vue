@@ -75,7 +75,7 @@ async function uploadVideo() {
         onUploadProgress: (progressEvent) => {
           uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
         },
-        timeout: undefined,
+        timeout: 0,
       },
     )
 
