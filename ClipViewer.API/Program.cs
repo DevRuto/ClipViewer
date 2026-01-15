@@ -72,7 +72,7 @@ if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolde
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.EnsureCreated();
+    context.Database.Migrate();
 }
 
 // Configure the HTTP request pipeline.
@@ -102,11 +102,16 @@ var outputPath = Path.IsPathRooted(outputVideoFolder)
     ? outputVideoFolder
     : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
 
-var contentTypeProvider = new FileExtensionContentTypeProvider();
-contentTypeProvider.Mappings[".mp4"] = "video/mp4";
-contentTypeProvider.Mappings[".mov"] = "video/mov";
-contentTypeProvider.Mappings[".m3u8"] = "application/x-mpegURL";
-contentTypeProvider.Mappings[".mkv"] = "video/x-matroska";
+var contentTypeProvider = new FileExtensionContentTypeProvider
+{
+    Mappings =
+    {
+        [".mp4"] = "video/mp4",
+        [".mov"] = "video/mov",
+        [".m3u8"] = "application/x-mpegURL",
+        [".mkv"] = "video/x-matroska"
+    }
+};
 
 app.UseWhen(
     context => context.Request.Path.StartsWithSegments(publicFilePath),
