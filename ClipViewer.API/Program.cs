@@ -6,6 +6,7 @@ using ClipViewer.API.Middleware;
 using ClipViewer.API.Models;
 using ClipViewer.API.Models.Auth;
 using ClipViewer.API.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -52,12 +53,8 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 
 // Add authentication and authorization
 builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
+    .AddAuthentication("JwtOrApiKey")
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -80,16 +77,16 @@ builder.Services
                 return JwtBearerDefaults.AuthenticationScheme;
             return "ApiKey";
         };
-    });
+    })
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthHandler>("ApiKey", null);
 
 // Configure authorization
 builder.Services.AddAuthorization(options =>
 {
-    var defaultPolicy = new AuthorizationPolicyBuilder()
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey")
         .RequireAuthenticatedUser()
         .Build();
-    options.DefaultPolicy = defaultPolicy;
 });
 
 // Configure database based on environment

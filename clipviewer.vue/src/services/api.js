@@ -6,9 +6,9 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const { apiKey } = useAuth()
-  if (apiKey.value) {
-    config.headers['X-Api-Key'] = apiKey.value
+  const { token } = useAuth()
+  if (token.value) {
+    config.headers['Authorization'] = `Bearer ${token.value}`
   }
   return config
 })
