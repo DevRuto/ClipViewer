@@ -1,10 +1,11 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import ClipList from '@/components/ClipList.vue'
 
 const route = useRoute()
+const router = useRouter()
 const { user, isAuthenticated } = useAuth()
 
 const isBrowsePage = ref(false)
@@ -51,7 +52,8 @@ watch(
           <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">Video Library</h2>
           <button
             v-if="isAuthenticated && user.username === username?.toLowerCase()"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+            @click="router.push('/upload')"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 cursor-pointer"
           >
             Upload New Clip
           </button>
