@@ -23,6 +23,10 @@ onMounted(async () => {
     const response = await api.get(`/api/videos/${route.params.videoId}`)
     if (response.status === 200) {
       video.value = response.data
+      // Update document title with video name
+      if (video.value.name) {
+        document.title = `${video.value.name} - ClipViewer`
+      }
     }
   } catch (error) {
     console.error('Failed to fetch video:', error)
@@ -46,6 +50,10 @@ async function updateVideo(updatedVideo) {
 
   if (response.status === 200) {
     video.value = response.data
+    // Update document title with new video name
+    if (video.value.name) {
+      document.title = `${video.value.name} - ClipViewer`
+    }
   }
 }
 
