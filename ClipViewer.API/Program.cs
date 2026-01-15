@@ -1,13 +1,18 @@
+using System.Text;
 using System.Threading.Channels;
 using ClipViewer.API.Data;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Middleware;
 using ClipViewer.API.Models;
+using ClipViewer.API.Models.Auth;
 using ClipViewer.API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
@@ -38,14 +43,54 @@ builder.Services.AddHostedService<VideoConversionWorker>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Add JWT settings from configuration
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+
 // Add authentication services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // Add authentication and authorization
-builder.Services.AddAuthentication()
-    .AddApiKeyAuth();
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+            ValidAudience = builder.Configuration["JwtSettings:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]))
+        };
+    })
+    .AddPolicyScheme("JwtOrApiKey", "JWT or API Key", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+        {
+            var authorization = context.Request.Headers.Authorization.ToString();
+            if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer "))
+                return JwtBearerDefaults.AuthenticationScheme;
+            return "ApiKey";
+        };
+    });
 
-builder.Services.AddAuthorization();
+// Configure authorization
+builder.Services.AddAuthorization(options =>
+{
+    var defaultPolicy = new AuthorizationPolicyBuilder()
+        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey")
+        .RequireAuthenticatedUser()
+        .Build();
+    options.DefaultPolicy = defaultPolicy;
+});
 
 // Configure database based on environment
 if (builder.Environment.IsDevelopment() || builder.Environment.IsProduction())

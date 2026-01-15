@@ -16,9 +16,4 @@ public class AuthService(ApplicationDbContext context) : IAuthService
         return await context.Users
             .FirstOrDefaultAsync(u => u.ApiKey == apiKey);
     }
-
-    private static Guid GenerateApiKey()
-    {
-        return Guid.NewGuid();
-    }
 }

@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -32,11 +32,10 @@ public class UploadController(
                                                ?? throw new InvalidOperationException();
 
     [HttpPost]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = "JwtOrApiKey")]
     [DisableRequestSizeLimit]
     public async Task<IActionResult> Upload(
         [FromHeader(Name = "Content-Type")] string contentType,
-        [FromHeader(Name = "X-Api-Key")] Guid apiKey,
         [FromQuery] string? name = "")
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
