@@ -2,6 +2,7 @@
 using ClipViewer.API.Data;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClipViewer.API.Services;
 
@@ -40,21 +41,6 @@ public partial class VideoConversionWorker(
 
         var videoInfo = await ffmpegService.GetMediaInfo(sourceFile, stoppingToken);
 
-        // Add to db
-        var dbVideo = new VideoClip
-        {
-            VideoId = job.VideoId,
-            Name = job.VideoId,
-            SourceVideoFile = $"/source/{job.VideoId}{Path.GetExtension(job.InputPath)}",
-            Thumbnail = string.Empty,
-            HlsPlaylistFile = string.Empty,
-            Processed = false,
-            Duration = videoInfo.Duration,
-            CreatedAt = DateTime.UtcNow,
-            UserId = job.AuthorId
-        };
-        await dbContext.VideoClips.AddAsync(dbVideo, stoppingToken);
-        await dbContext.SaveChangesAsync(stoppingToken);
 
         // Fix hls path to include file id
         var hlsPath = Path.Combine(job.OutputDirectory, "hls", job.VideoId);
@@ -64,6 +50,8 @@ public partial class VideoConversionWorker(
         var thumbnailPath = Path.Combine(job.OutputDirectory, "thumbnails", $"{job.VideoId}.jpg");
         await ffmpegService.GenerateThumbnail(sourceFile, thumbnailPath, stoppingToken);
 
+        var dbVideo = await dbContext.VideoClips.FirstAsync(video => video.VideoId == job.VideoId, stoppingToken);
+        dbVideo.Duration = videoInfo.Duration;
         dbVideo.Thumbnail = $"/thumbnails/{job.VideoId}.jpg";
         dbVideo.HlsPlaylistFile = $"/hls/{job.VideoId}/playlist.m3u8";
         dbVideo.Processed = true;
