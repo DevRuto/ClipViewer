@@ -1,6 +1,6 @@
 # ClipViewer
 
-I wanted something like stremable/youtube where I upload my video clips and
+I wanted something like streamable/youtube where I upload my video clips and
 it would last as long as the server stays up.
 
 No plans to maintain this project as long as it fits my minimal needs
@@ -34,6 +34,10 @@ No plans to maintain this project as long as it fits my minimal needs
 3. **Access the application**
    - http://localhost:5000
    - Database: PostgreSQL on port 5432
+
+4. Adding users
+   - There's a `create_user.sh` script that would connect to the docker postgres db and create a user with the given username
+   - There's also `update_user.sh` to change the API key for the given username if needed for any reason
 
 ## 🛠️ Manual Setup (Development)
 
