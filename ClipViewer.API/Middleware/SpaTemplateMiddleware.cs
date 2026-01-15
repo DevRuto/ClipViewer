@@ -14,7 +14,9 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
             new PathString("/"),
             new PathString("/browse"),
             new PathString("/clips"),
-            new PathString("/users")
+            new PathString("/users"),
+            new PathString("/login"),
+            new PathString("/upload")
         };
 
         // Only process GET requests for the root or other SPA routes
