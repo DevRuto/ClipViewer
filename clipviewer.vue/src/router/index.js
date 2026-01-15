@@ -29,6 +29,12 @@ const router = createRouter({
       meta: { title: 'Sign In - ClipViewer' },
     },
     {
+      path: '/upload',
+      name: 'upload',
+      component: () => import('../views/UploadView.vue'),
+      meta: { requiresAuth: true, title: 'Upload - ClipViewer' },
+    },
+    {
       path: '/clips/:videoId',
       name: 'video',
       component: () => import('../views/VideoView.vue'),
