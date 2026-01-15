@@ -20,7 +20,7 @@ const router = createRouter({
       path: '/users/:username',
       name: 'user-clips',
       component: () => import('../views/ClipsView.vue'),
-      meta: { requiresAuth: true, title: 'Your Clips - ClipViewer' },
+      meta: { title: 'Clips - ClipViewer' },
     },
     {
       path: '/login',
