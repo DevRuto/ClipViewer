@@ -39,6 +39,10 @@ builder.Services.AddSingleton(
             SingleWriter = false
         }));
 builder.Services.AddSingleton<IVideoJobQueue, VideoJobQueue>();
+builder.Services.Configure<HostOptions>(hostOptions =>
+{
+    hostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+});
 builder.Services.AddHostedService<VideoConversionWorker>();
 
 builder.Services.AddControllers();
