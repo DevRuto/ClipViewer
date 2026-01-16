@@ -28,7 +28,7 @@ public class FFMpegService : IFFmpegService
 
         var conversion = FFmpeg.Conversions.New()
             .AddParameter($"-i {videoFile}")
-            .AddParameter("-vf \"thumbnail,scale=320:-1\" -frames:v 1")
+            .AddParameter("-vf \"thumbnail,scale=640:-1\" -frames:v 1")
             .AddParameter(destinationFile);
 
         await conversion.Start(stoppingToken);
