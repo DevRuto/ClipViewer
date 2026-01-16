@@ -127,33 +127,38 @@ watch(
         </h1>
       </div>
 
-      <!-- Unlisted checkbox -->
-      <label
-        class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none"
-      >
-        <input
-          type="checkbox"
-          v-model="unlisted"
-          class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-        />
-        <span>Unlisted</span>
-      </label>
+      <!-- Unlisted checkbox and Delete button - only show when editing -->
+      <div v-if="isEditing" class="flex items-center justify-between">
+        <!-- Public/Unlisted toggle switch -->
+        <label
+          class="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none"
+        >
+          <span class="text-sm font-medium">Public</span>
+          <div class="relative">
+            <input type="checkbox" v-model="unlisted" class="sr-only peer" />
+            <div
+              class="w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:w-5 after:h-5 after:bg-white after:border after:border-gray-300 after:rounded-full after:transition-all peer-checked:after:translate-x-5"
+            ></div>
+          </div>
+          <span class="text-sm font-medium">Unlisted</span>
+        </label>
 
-      <!-- Delete button -->
-      <button
-        @click="handleDelete"
-        class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-          ></path>
-        </svg>
-        Delete Video
-      </button>
+        <!-- Delete button -->
+        <button
+          @click="handleDelete"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            ></path>
+          </svg>
+          Delete Video
+        </button>
+      </div>
     </div>
 
     <h1
