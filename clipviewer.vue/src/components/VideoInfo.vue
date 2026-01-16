@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
+import { useAuthorColor } from '@/composables/useAuthorColor.js'
 
 // Debounce utility function
 function debounce(fn, delay) {
@@ -19,7 +20,10 @@ const includeTimestamp = ref(false)
 const currentTime = ref(0)
 
 const { user } = useAuth()
+const { stringToColor, getContrastColor } = useAuthorColor()
 const ownsVideo = computed(() => user.value?.username === props.video.author)
+const authorColor = stringToColor(props.video.author)
+const textColor = getContrastColor(authorColor)
 const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
 const isEditing = ref(false)
@@ -163,7 +167,10 @@ watch(
       <div
         class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400"
       >
-        <div class="bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium">
+        <div
+          class="text-xs px-2 py-1 rounded font-medium"
+          :style="{ backgroundColor: authorColor, color: textColor }"
+        >
           {{ video.author }}
         </div>
         <span>Duration: {{ formatDuration(video.duration) }}</span>

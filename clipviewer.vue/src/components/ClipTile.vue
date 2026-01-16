@@ -1,7 +1,12 @@
 <script setup>
 import { formatDuration } from '@/composables/useDuration.js'
+import { useAuthorColor } from '@/composables/useAuthorColor.js'
 
 const { video } = defineProps(['video'])
+const { stringToColor, getContrastColor } = useAuthorColor()
+
+const authorColor = stringToColor(video.author)
+const textColor = getContrastColor(authorColor)
 </script>
 
 <template>
@@ -32,7 +37,10 @@ const { video } = defineProps(['video'])
       <p class="text-sm text-gray-500 dark:text-gray-400">
         {{ new Date(video.createdAt).toLocaleDateString() }}
       </p>
-      <div class="bg-blue-500 text-white text-xs px-2 py-1 rounded font-medium">
+      <div
+        class="text-xs px-2 py-1 rounded font-medium"
+        :style="{ backgroundColor: authorColor, color: textColor }"
+      >
         {{ video.author }}
       </div>
     </div>
