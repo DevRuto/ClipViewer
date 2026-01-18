@@ -10,6 +10,7 @@ const router = useRouter()
 const video = ref(null)
 const loading = ref(true)
 const videoPlayer = ref(null)
+const isCinemaMode = ref(false)
 
 const videoSource = computed(() => {
   if (video.value?.processed) {
@@ -64,11 +65,15 @@ async function deleteVideo() {
     router.push('/browse')
   }
 }
+
+function onToggleCinemaMode(cinemaModeState) {
+  isCinemaMode.value = cinemaModeState
+}
 </script>
 
 <template>
   <div class="min-h-screen">
-    <div class="container mx-auto px-4 py-8">
+    <div :class="['mx-auto px-4 py-8', { container: !isCinemaMode }]">
       <div v-if="loading" class="text-center py-12">
         <div
           class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
@@ -76,7 +81,10 @@ async function deleteVideo() {
         <p class="mt-4 text-gray-600 dark:text-gray-400">Loading video...</p>
       </div>
 
-      <div v-else-if="video" class="max-w-4xl mx-auto">
+      <div
+        v-else-if="video"
+        :class="['mx-auto', { 'max-w-4xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]"
+      >
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
           <div class="aspect-video">
             <VideoPlayer
@@ -84,6 +92,7 @@ async function deleteVideo() {
               :src="videoSource"
               :placeholder="video.thumbnail"
               @loaded="onVideoLoaded"
+              @toggleCinemaMode="onToggleCinemaMode"
             />
           </div>
           <VideoInfo
