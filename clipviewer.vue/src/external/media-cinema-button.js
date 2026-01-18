@@ -10,12 +10,12 @@ const cinemaModeIcon = `<svg aria-hidden="true" viewBox="0 0 24 24">
   <path d="M6 8h12v8H6z"/>
 </svg>`
 
+let initialCinemaMode = localStorage.getItem('cinema-mode') === 'true'
 function tooltipContentHTML(isCinemaMode) {
   return isCinemaMode ? 'Exit Cinema Mode' : 'Enter Cinema Mode'
 }
 
 class MediaCinemaButton extends MediaChromeButton {
-  static getTooltipContentHTML = tooltipContentHTML
   constructor() {
     super()
     this.isCinemaMode = localStorage.getItem('cinema-mode') === 'true'
@@ -48,6 +48,10 @@ class MediaCinemaButton extends MediaChromeButton {
      <slot name="disabled">${theatreModeIcon}</slot>
     </slot>
     `
+  }
+
+  static getTooltipContentHTML() {
+    return tooltipContentHTML(initialCinemaMode)
   }
 
   handleClick() {
