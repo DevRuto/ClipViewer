@@ -10,14 +10,21 @@ public class FFMpegService : IFFmpegService
         Directory.CreateDirectory(destinationFolder);
         var conversion = FFmpeg.Conversions
             .New()
-            .AddParameter($"-i {videoFile}")
-            .AddParameter(
-                "-c:v libx264 -profile:v main -level 4.0 " +
-                "-b:v 5000k -maxrate 5500k -bufsize 10000k " +
-                "-c:a aac -b:a 128k " +
-                "-start_number 0 -hls_time 10 -hls_list_size 0 " +
-                "-hls_flags independent_segments -f hls")
-            .AddParameter($"{destinationFolder}/playlist.m3u8");
+            .AddParameter($"-i \"{videoFile}\"") // Input file
+            .AddParameter("-c:v libx264") // Video codec
+            .AddParameter("-profile:v main") // H.264 profile
+            .AddParameter("-level 4.0") // H.264 level
+            .AddParameter("-b:v 5000k") // Video bitrate
+            .AddParameter("-maxrate 5500k") // Maximum bitrate
+            .AddParameter("-bufsize 10000k") // Buffer size
+            .AddParameter("-c:a aac") // Audio codec
+            .AddParameter("-b:a 128k") // Audio bitrate
+            .AddParameter("-start_number 0") // Start segment number
+            .AddParameter("-hls_time 10") // Segment duration in seconds
+            .AddParameter("-hls_list_size 0") // Playlist size limit
+            .AddParameter("-hls_flags independent_segments") // Independent segment decoding
+            .AddParameter("-f hls") // Output format
+            .AddParameter($"\"{destinationFolder}/playlist.m3u8\""); // Output playlist path;
 
         await conversion.Start(stoppingToken);
     }
