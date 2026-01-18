@@ -10,7 +10,12 @@ const cinemaModeIcon = `<svg aria-hidden="true" viewBox="0 0 24 24">
   <path d="M6 8h12v8H6z"/>
 </svg>`
 
+function tooltipContentHTML(isCinemaMode) {
+  return isCinemaMode ? 'Exit Cinema Mode' : 'Enter Cinema Mode'
+}
+
 class MediaCinemaButton extends MediaChromeButton {
+  static getTooltipContentHTML = tooltipContentHTML
   constructor() {
     super()
     this.isCinemaMode = localStorage.getItem('cinema-mode') === 'true'
@@ -51,17 +56,14 @@ class MediaCinemaButton extends MediaChromeButton {
     this.requestUpdate()
   }
 
-  getTooltipContentHTML() {
-    return /*html*/ `
-    <slot name="tooltip-enter">Enter cinema mode</slot>
-    <slot name="tooltip-exit">Exit cinema mode</slot>
-  `
-  }
-
   requestUpdate() {
-    const slot = this.shadowRoot.querySelector('slot')
+    const slot = this.shadowRoot.querySelector('slot[name=icon]')
     if (slot) {
       slot.innerHTML = this.isCinemaMode ? cinemaModeIcon : theatreModeIcon
+    }
+    const tooltipSlot = this.shadowRoot.querySelector('slot[name=tooltip-content]')
+    if (tooltipSlot) {
+      tooltipSlot.innerHTML = tooltipContentHTML(this.isCinemaMode)
     }
     const eventName = this.isCinemaMode ? 'cinema-mode-enabled' : 'cinema-mode-disabled'
     this.dispatchEvent(
