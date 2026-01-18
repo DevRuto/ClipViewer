@@ -72,61 +72,57 @@ function onToggleCinemaMode(cinemaModeState) {
 </script>
 
 <template>
-  <div class="min-h-screen">
-    <div :class="['mx-auto px-4 py-8', { container: !isCinemaMode }]">
-      <div v-if="loading" class="text-center py-12">
-        <div
-          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
-        ></div>
-        <p class="mt-4 text-gray-600 dark:text-gray-400">Loading video...</p>
-      </div>
+  <div :class="['mx-auto px-4 py-8', { container: !isCinemaMode }]">
+    <div v-if="loading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="mt-4 text-gray-600 dark:text-gray-400">Loading video...</p>
+    </div>
 
-      <div
-        v-else-if="video"
-        :class="['mx-auto', { 'max-w-4xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]"
-      >
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <div class="aspect-video">
-            <VideoPlayer
-              ref="videoPlayer"
-              :src="videoSource"
-              :placeholder="video.thumbnail"
-              @loaded="onVideoLoaded"
-              @toggleCinemaMode="onToggleCinemaMode"
-            />
-          </div>
-          <VideoInfo
-            :video="video"
-            :videoPlayer="videoPlayer"
-            @update-video="updateVideo"
-            @delete-video="deleteVideo"
+    <div
+      v-else-if="video"
+      :class="['mx-auto', { 'max-w-4xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]"
+    >
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div class="aspect-video">
+          <VideoPlayer
+            ref="videoPlayer"
+            :src="videoSource"
+            :placeholder="video.thumbnail"
+            @loaded="onVideoLoaded"
+            @toggleCinemaMode="onToggleCinemaMode"
           />
         </div>
+        <VideoInfo
+          :video="video"
+          :videoPlayer="videoPlayer"
+          @update-video="updateVideo"
+          @delete-video="deleteVideo"
+        />
       </div>
+    </div>
 
-      <div v-else class="text-center py-12">
-        <svg
-          class="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-          ></path>
-        </svg>
-        <p class="text-gray-500 dark:text-gray-400 text-lg mb-2">Video not found</p>
-        <p class="text-gray-400 dark:text-gray-500">The video you're looking for doesn't exist.</p>
-        <RouterLink
-          to="/browse"
-          class="mt-4 inline-block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          ← Back to clips
-        </RouterLink>
-      </div>
+    <div v-else class="text-center py-12">
+      <svg
+        class="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+        ></path>
+      </svg>
+      <p class="text-gray-500 dark:text-gray-400 text-lg mb-2">Video not found</p>
+      <p class="text-gray-400 dark:text-gray-500">The video you're looking for doesn't exist.</p>
+      <RouterLink
+        to="/browse"
+        class="mt-4 inline-block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+      >
+        ← Back to clips
+      </RouterLink>
     </div>
   </div>
 </template>

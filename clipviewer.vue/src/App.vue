@@ -12,10 +12,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="bg-gray-200 dark:bg-gray-900">
-    <nav class="bg-gray-200 dark:bg-gray-900 shadow-md">
-      <div class="container mx-auto px-4">
-        <div class="flex justify-between items-center h-16">
+  <div class="bg-gray-200 dark:bg-gray-900 min-h-screen flex flex-col">
+    <nav class="bg-gray-200 dark:bg-gray-900 shadow-md p-4 h-16">
+      <div class="container mx-auto">
+        <div class="flex justify-between items-center">
           <div class="flex items-center">
             <RouterLink to="/" class="text-xl font-bold text-gray-800 dark:text-white"
               >ClipViewer</RouterLink
@@ -81,7 +81,7 @@ onMounted(() => {
         </div>
       </div>
     </nav>
-    <RouterView />
+    <RouterView class="flex-1" />
   </div>
 </template>
 
