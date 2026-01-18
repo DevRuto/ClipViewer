@@ -23,13 +23,6 @@ onMounted(() => {
           </div>
           <div class="flex items-center space-x-8">
             <RouterLink
-              to="/"
-              class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              exact-active-class="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
-            >
-              Home
-            </RouterLink>
-            <RouterLink
               to="/browse"
               exact
               class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
