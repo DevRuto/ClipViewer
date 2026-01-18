@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import 'media-chrome'
 import 'hls-video-element'
+import '@/external/media-cinema-button.js'
 
 const refVideo = ref(null)
 const currentTime = ref(0)
@@ -17,7 +18,7 @@ defineExpose({
   goToTime,
   currentTime,
 })
-const emit = defineEmits(['loaded'])
+const emit = defineEmits(['loaded', 'toggleCinemaMode'])
 
 const isHLS = props.src.toLocaleLowerCase().endsWith('.m3u8')
 
@@ -35,7 +36,13 @@ function onLoaded() {
 }
 
 function onTimeUpdate() {
-  currentTime.value = refVideo.value.currentTime
+  if (refVideo.value) {
+    currentTime.value = refVideo.value.currentTime
+  }
+}
+
+function onCinemaModeToggle(event) {
+  emit('toggleCinemaMode', event.detail.isCinemaMode)
 }
 </script>
 
@@ -54,6 +61,11 @@ function onTimeUpdate() {
       <media-time-range></media-time-range>
       <media-time-display showduration remaining></media-time-display>
       <media-playback-rate-button></media-playback-rate-button>
+      <media-cinema-button
+        @cinema-mode-enabled="onCinemaModeToggle"
+        @cinema-mode-disabled="onCinemaModeToggle"
+      >
+      </media-cinema-button>
       <media-fullscreen-button></media-fullscreen-button>
     </media-control-bar>
   </media-controller>
