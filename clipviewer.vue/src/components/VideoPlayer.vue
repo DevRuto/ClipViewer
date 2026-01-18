@@ -62,6 +62,7 @@ function onCinemaModeToggle(event) {
       <media-time-display showduration remaining></media-time-display>
       <media-playback-rate-button></media-playback-rate-button>
       <media-cinema-button
+        class="hidden sm:flex"
         @cinema-mode-enabled="onCinemaModeToggle"
         @cinema-mode-disabled="onCinemaModeToggle"
       >
