@@ -11,11 +11,13 @@ const isUploading = ref(false)
 const uploadProgress = ref(0)
 const error = ref('')
 const dragOver = ref(false)
+const videoUrl = ref('')
 
 function handleFileSelect(event) {
   const selectedFile = event.target.files[0]
   if (selectedFile && selectedFile.type.startsWith('video/')) {
     file.value = selectedFile
+    videoUrl.value = URL.createObjectURL(selectedFile)
     if (!videoName.value) {
       videoName.value = selectedFile.name.replace(/\.[^/.]+$/, '')
     }
@@ -31,6 +33,7 @@ function handleDrop(event) {
   const droppedFile = event.dataTransfer.files[0]
   if (droppedFile && droppedFile.type.startsWith('video/')) {
     file.value = droppedFile
+    videoUrl.value = URL.createObjectURL(droppedFile)
     if (!videoName.value) {
       videoName.value = droppedFile.name.replace(/\.[^/.]+$/, '')
     }
@@ -97,6 +100,14 @@ function cancelUpload() {
     uploadProgress.value = 0
   }
 }
+
+function clearVideoPreview() {
+  if (videoUrl.value) {
+    URL.revokeObjectURL(videoUrl.value)
+    videoUrl.value = ''
+  }
+  file.value = null
+}
 </script>
 
 <template>
@@ -150,6 +161,32 @@ function cancelUpload() {
             </p>
             <p class="text-sm text-gray-500 dark:text-gray-500">
               Supported formats: MP4, WebM, AVI, MOV
+            </p>
+          </div>
+
+          <!-- Video Preview -->
+          <div v-if="videoUrl" class="mt-6">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-lg font-medium text-gray-800 dark:text-white">Video Preview</h3>
+              <button
+                @click="clearVideoPreview"
+                class="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+              >
+                Clear Preview
+              </button>
+            </div>
+            <div class="relative rounded-lg overflow-hidden bg-black">
+              <video
+                :src="videoUrl"
+                controls
+                class="w-full max-h-96 object-contain"
+                preload="metadata"
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              {{ file?.name }} ({{ (file?.size / 1024 / 1024).toFixed(2) }} MB)
             </p>
           </div>
 
