@@ -47,6 +47,7 @@ async function updateVideo(updatedVideo) {
   const response = await api.put(`/api/videos/${route.params.videoId}`, {
     unlisted: updatedVideo.unlisted,
     name: updatedVideo.name,
+    description: updatedVideo.description,
   })
 
   if (response.status === 200) {

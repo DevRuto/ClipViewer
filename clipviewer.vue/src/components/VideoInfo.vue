@@ -26,6 +26,7 @@ const authorColor = stringToColor(props.video.author)
 const textColor = getContrastColor(authorColor)
 const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
+const description = ref(props.video.description || '')
 const isEditing = ref(false)
 const showDeleteModal = ref(false)
 
@@ -40,6 +41,13 @@ const debouncedNameUpdate = debounce((newValue) => {
 }, 500)
 
 watch(name, debouncedNameUpdate)
+
+// Debounced description watcher
+const debouncedDescriptionUpdate = debounce((newValue) => {
+  emit('update-video', { ...props.video, description: newValue })
+}, 500)
+
+watch(description, debouncedDescriptionUpdate)
 
 function toggleEdit() {
   isEditing.value = !isEditing.value
@@ -161,12 +169,33 @@ watch(
       </div>
     </div>
 
-    <h1
-      v-else
-      class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white break-words line-clamp-2 sm:line-clamp-3"
-    >
-      {{ name }}
-    </h1>
+    <!-- Description section -->
+    <div class="mb-4">
+      <div v-if="ownsVideo && isEditing" class="mt-3">
+        <textarea
+          v-model="description"
+          class="w-full text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 hover:border-gray-400 dark:hover:border-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 focus:outline-none transition-colors resize-none"
+          rows="3"
+          placeholder="Add a description..."
+        ></textarea>
+      </div>
+      <div v-else-if="description" class="mt-3">
+        <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ description }}</p>
+      </div>
+    </div>
+
+    <!-- Non-owner title and description -->
+    <div v-if="!ownsVideo">
+      <h1
+        class="flex-1 min-w-0 text-2xl font-bold text-gray-800 dark:text-white break-words line-clamp-2 sm:line-clamp-3"
+      >
+        {{ name }}
+      </h1>
+      <!-- Description section for non-owners -->
+      <div v-if="description" class="mt-3">
+        <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ description }}</p>
+      </div>
+    </div>
     <div class="block my-4 border-t border-gray-200 dark:border-gray-700"></div>
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
       <div

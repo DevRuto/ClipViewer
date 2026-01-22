@@ -68,6 +68,7 @@ public class VideosController(
             return BadRequest("Unable to get user info");
 
         var video = await context.VideoClips
+            .Include(v => v.User)
             .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId);
 
         if (video == null) return NotFound();
