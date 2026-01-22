@@ -7,6 +7,7 @@ public class VideoClipDto
     public string VideoId { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 
     public string SourceVideoFile { get; set; } = string.Empty;
 
@@ -26,6 +27,7 @@ public class VideoClipDto
             Id = entity.Id,
             VideoId = entity.VideoId,
             Name = entity.Name,
+            Description = entity.Description,
             SourceVideoFile = $"{publicFilePath}{entity.SourceVideoFile}",
             HlsPlaylistFile = $"{publicFilePath}{entity.HlsPlaylistFile}",
             Thumbnail = $"{publicFilePath}{entity.Thumbnail}",

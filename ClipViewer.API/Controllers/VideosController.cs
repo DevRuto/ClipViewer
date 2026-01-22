@@ -74,6 +74,7 @@ public class VideosController(
 
         video.Name = request.Name;
         video.Unlisted = request.Unlisted;
+        video.Description = request.Description;
         await context.SaveChangesAsync();
         return VideoClipDto.FromEntity(video, _publicFilePath);
     }
