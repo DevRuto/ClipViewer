@@ -71,4 +71,10 @@ router.beforeEach(async (to, from, next) => {
   next()
 })
 
+router.onError((error, to) => {
+  if (error.message.includes('error loading dynamically imported module')) {
+    window.location = to.fullPath
+  }
+})
+
 export default router
