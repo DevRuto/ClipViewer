@@ -3,6 +3,8 @@ import { ref, watch, computed } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 // Debounce utility function
 function debounce(fn, delay) {
@@ -29,6 +31,13 @@ const name = ref(props.video.name)
 const description = ref(props.video.description || '')
 const isEditing = ref(false)
 const showDeleteModal = ref(false)
+
+// Computed property to render description as markdown
+const renderedDescription = computed(() => {
+  if (!description.value) return ''
+  const rawHtml = marked(description.value)
+  return DOMPurify.sanitize(rawHtml)
+})
 
 // Watch for changes and emit to parent
 watch(unlisted, (newValue) => {
@@ -180,7 +189,10 @@ watch(
         ></textarea>
       </div>
       <div v-else-if="description" class="mt-3">
-        <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ description }}</p>
+        <div
+          class="text-gray-700 dark:text-gray-300 prose prose-sm max-w-none dark:prose-invert"
+          v-html="renderedDescription"
+        ></div>
       </div>
     </div>
 
@@ -193,7 +205,10 @@ watch(
       </h1>
       <!-- Description section for non-owners -->
       <div v-if="description" class="mt-3">
-        <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{{ description }}</p>
+        <article
+          class="text-gray-700 dark:text-gray-300 prose prose-sm max-w-none dark:prose-invert"
+          v-html="renderedDescription"
+        ></article>
       </div>
     </div>
     <div class="block my-4 border-t border-gray-200 dark:border-gray-700"></div>
