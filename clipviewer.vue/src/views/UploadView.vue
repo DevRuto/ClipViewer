@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/services/api'
+import VideoUploadPreview from '@/components/VideoUploadPreview.vue'
 
 const router = useRouter()
 
@@ -12,6 +13,8 @@ const uploadProgress = ref(0)
 const error = ref('')
 const dragOver = ref(false)
 const videoUrl = ref('')
+const isEditingMode = ref(false)
+const timestamps = ref(null)
 
 function handleFileSelect(event) {
   const selectedFile = event.target.files[0]
@@ -63,13 +66,27 @@ async function uploadVideo() {
     return
   }
 
+  if (isEditingMode.value && (!timestamps.value || !timestamps.value.startTime || !timestamps.value.endTime)) {
+    error.value = 'Please set valid start and end times for the clip'
+    return
+  }
+
   isUploading.value = true
   error.value = ''
   uploadProgress.value = 0
 
   try {
+    let url = `/api/upload?name=${encodeURIComponent(videoName.value.trim())}`
+
+    // Add timestamps if in edit mode
+    // Format: startTime and endTime as seconds from beginning of video
+    // Example: &startTime=30&endTime=120 (for a 30-90 second clip)
+    if (isEditingMode.value && timestamps.value) {
+      url += `&startTime=${timestamps.value.startTime}&endTime=${timestamps.value.endTime}`
+    }
+
     const response = await api.post(
-      `/api/upload?name=${encodeURIComponent(videoName.value.trim())}`,
+      url,
       file.value,
       {
         headers: {
@@ -107,6 +124,11 @@ function clearVideoPreview() {
     videoUrl.value = ''
   }
   file.value = null
+  timestamps.value = null
+}
+
+function onTimestampsChange(newTimestamps) {
+  timestamps.value = newTimestamps
 }
 </script>
 
@@ -115,7 +137,7 @@ function clearVideoPreview() {
     <div class="container mx-auto px-4 py-8">
       <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">Upload New Clip</h1>
 
-      <div class="max-w-2xl mx-auto">
+      <div class="mx-auto" :class="isEditingMode ? 'max-w-7xl' : 'max-w-4xl'">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <!-- File Drop Area -->
           <div
@@ -164,31 +186,15 @@ function clearVideoPreview() {
             </p>
           </div>
 
-          <!-- Video Preview -->
-          <div v-if="videoUrl" class="mt-6">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-medium text-gray-800 dark:text-white">Video Preview</h3>
-              <button
-                @click="clearVideoPreview"
-                class="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-              >
-                Clear Preview
-              </button>
-            </div>
-            <div class="relative rounded-lg overflow-hidden bg-black">
-              <video
-                :src="videoUrl"
-                controls
-                class="w-full max-h-96 object-contain"
-                preload="metadata"
-              >
-                Your browser does not support the video tag.
-              </video>
-            </div>
-            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              {{ file?.name }} ({{ (file?.size / 1024 / 1024).toFixed(2) }} MB)
-            </p>
-          </div>
+          <!-- Video Upload Preview Component -->
+          <VideoUploadPreview
+            :video-url="videoUrl"
+            :file="file"
+            :is-editing-mode="isEditingMode"
+            @clear-preview="clearVideoPreview"
+            @timestamps-change="onTimestampsChange"
+            @toggle-edit-mode="isEditingMode = !isEditingMode"
+          />
 
           <!-- Video Name Input -->
           <div class="mt-6">
@@ -234,10 +240,10 @@ function clearVideoPreview() {
           <div class="mt-6 flex gap-3">
             <button
               @click="uploadVideo"
-              :disabled="isUploading || !file"
+              :disabled="isUploading || !file || (isEditingMode && !timestamps)"
               class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-lg transition duration-200"
             >
-              {{ isUploading ? 'Uploading...' : 'Upload Clip' }}
+              {{ isUploading ? 'Uploading...' : (isEditingMode ? 'Upload Clip' : 'Upload Video') }}
             </button>
             <button
               v-if="isUploading"
