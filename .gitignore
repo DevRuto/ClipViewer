@@ -96,3 +96,5 @@ out/
 # Ignore output folder
 Output/
 FFmpeg/
+
+**/logs
