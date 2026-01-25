@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, onUnmounted } from 'vue'
+import { onMounted, ref, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import VideoPlayer from '@/components/VideoPlayer.vue'
@@ -13,14 +13,9 @@ const videoPlayer = ref(null)
 const isCinemaMode = ref(false)
 const pollingInterval = ref(null)
 
-const videoSource = computed(() => {
-  if (video.value?.processed) {
-    return video.value.hlsPlaylistFile
-  }
-  return video.value?.sourceVideoFile
-})
+const videoSource = ref(null)
 
-async function fetchVideo() {
+async function fetchVideo(isPolling = false) {
   try {
     const response = await api.get(`/api/videos/${route.params.videoId}`)
     if (response.status === 200) {
@@ -29,11 +24,17 @@ async function fetchVideo() {
       if (video.value.name) {
         document.title = `${video.value.name} - ClipViewer`
       }
-
       // Stop polling if video is processed
-      if (video.value.processed && pollingInterval.value) {
+      if (response.data.processed && pollingInterval.value) {
         clearInterval(pollingInterval.value)
         pollingInterval.value = null
+      }
+
+      // Update video source
+      if (!isPolling && response.data.processed) {
+        videoSource.value = response.data.hlsPlaylistFile
+      } else {
+        videoSource.value = response.data.sourceVideoFile
       }
     }
   } catch (error) {
@@ -46,7 +47,7 @@ function startPolling() {
 
   pollingInterval.value = setInterval(() => {
     if (video.value && !video.value.processed) {
-      fetchVideo()
+      fetchVideo(true) // Pass true to indicate this is a polling request
     }
   }, 5000) // Poll every 5 seconds
 }

@@ -217,7 +217,6 @@ watch(
         </div>
         <div class="flex-1">
           <p class="text-sm font-medium text-green-800 dark:text-green-200">Video processing complete!</p>
-          <p class="text-xs text-green-600 dark:text-green-400">Your video is now available in high quality</p>
         </div>
         <button
           @click="refreshVideo"
