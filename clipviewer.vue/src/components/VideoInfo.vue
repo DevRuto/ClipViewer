@@ -67,6 +67,7 @@ watch(
     if (oldProcessed === false && newProcessed === true) {
       // Video just finished processing
       wasProcessing.value = true
+      emit('refresh-video')
     }
   },
   { immediate: true }
