@@ -6,6 +6,7 @@ import '@/external/media-cinema-button.js'
 
 const refVideo = ref(null)
 const currentTime = ref(0)
+const videoLoaded = ref(false);
 
 const props = defineProps({
   src: {
@@ -34,6 +35,7 @@ function goToTime(time) {
 
 function onLoaded() {
   emit('loaded')
+  videoLoaded.value = true
 }
 
 function onTimeUpdate() {
@@ -48,7 +50,7 @@ function onCinemaModeToggle(event) {
 </script>
 
 <template>
-  <media-controller>
+  <media-controller v-show="videoLoaded">
     <video v-if="!isHLS" :src="props.src" slot="media" ref="refVideo"></video>
     <hls-video v-else :src="props.src" crossorigin slot="media" ref="refVideo"></hls-video>
 
