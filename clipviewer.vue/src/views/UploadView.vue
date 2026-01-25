@@ -81,8 +81,17 @@ async function uploadVideo() {
     // Add timestamps if in edit mode
     // Format: startTime and endTime as seconds from beginning of video
     // Example: &startTime=30&endTime=120 (for a 30-90 second clip)
-    if (isEditingMode.value && timestamps.value) {
-      url += `&startTime=${timestamps.value.startTime}&endTime=${timestamps.value.endTime}`
+    if (isEditingMode.value &&
+        timestamps.value &&
+        timestamps.value.startTime !== undefined &&
+        timestamps.value.endTime !== undefined &&
+        timestamps.value.startTime >= 0 &&
+        timestamps.value.endTime > timestamps.value.startTime) {
+          if (timestamps.value.startTime === 0 && timestamps.value.endTime === file.value.duration) {
+            // Don't add timestamps if the entire video is being uploaded
+            return
+          }
+          url += `&startTime=${timestamps.value.startTime}&endTime=${timestamps.value.endTime}`
     }
 
     const response = await api.post(
