@@ -70,6 +70,22 @@ No plans to maintain this project as long as it fits my minimal needs
    npm run dev
    ```
 
+## Ramble?
+I wanted to create an app that I can self-host to hold videos to share with.
+The various online solutions tend to expire videos after some time from their free tier, or take too long to process (which is fair due to computing power).
+None of these are unreasonable but it provided an idea for a side project to work on.
+
+Additionally with the rise of AI tools in modern softwares, it gave me a chance to see how far these
+AI tools can go. There were 2 particular weak spots I had that AI was able to help compensate for the most part.
+The vue app in this project used Tailwind CSS framework. AI was able to help format the app in a responsive way with
+it's knowledge of tailwind's utility classes, so I didn't really need to exert much
+brainpower into the UI/UX portion of the app.
+
+Testing was another point, but moreso on the laziness side rather than weak.
+I gave a prompt to create tests and (Windsurf) was able to generate these tests
+based on it's deep understanding of the project through cascade. These tests weren't
+perfect, but it was still mostly usable. Some parts needed manual intervention.
+Part of the reason is due to outdated knowledge of the framework.
 
 ## 📄 License
 
