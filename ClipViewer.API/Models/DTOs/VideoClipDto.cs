@@ -28,13 +28,19 @@ public class VideoClipDto
             VideoId = entity.VideoId,
             Name = entity.Name,
             Description = entity.Description,
-            SourceVideoFile = $"{publicFilePath}{entity.SourceVideoFile}",
-            HlsPlaylistFile = $"{publicFilePath}{entity.HlsPlaylistFile}",
-            Thumbnail = $"{publicFilePath}{entity.Thumbnail}",
+            SourceVideoFile = string.IsNullOrEmpty(entity.SourceVideoFile)
+                ? ""
+                : $"{publicFilePath}{entity.SourceVideoFile}",
+            HlsPlaylistFile = string.IsNullOrEmpty(entity.HlsPlaylistFile)
+                ? ""
+                : $"{publicFilePath}{entity.HlsPlaylistFile}",
+            Thumbnail = string.IsNullOrEmpty(entity.Thumbnail)
+                ? ""
+                : $"{publicFilePath}{entity.Thumbnail}",
             Duration = entity.Duration,
             CreatedAt = entity.CreatedAt,
             Processed = entity.Processed,
-            Author = entity.User?.Username,
+            Author = entity.User?.Username ?? "",
             Unlisted = entity.Unlisted
         };
     }

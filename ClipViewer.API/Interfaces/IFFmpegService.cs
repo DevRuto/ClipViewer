@@ -5,8 +5,10 @@ namespace ClipViewer.API.Interfaces;
 public interface IFFmpegService
 {
     Task ConvertToHls(
-        string videoFile, string destinationFolder, int startTime = 0, int? endTime = null,
+        string videoFilePath, string destinationFolder,
         CancellationToken stoppingToken = default);
+
+    Task TrimVideo(string videoFilePath, string destinationFile, int startTime = 0, int? endTime = null);
 
     Task GenerateThumbnail(string videoFile, string destinationFile, CancellationToken stoppingToken);
     Task<IMediaInfo> GetMediaInfo(string videoFile, CancellationToken stoppingToken);

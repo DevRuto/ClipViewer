@@ -28,26 +28,34 @@ public partial class VideoConversionWorker(
 
         // This should never happen
         // The queue is setting this
-        if (job.VideoId is null)
+        if (job.VideoId is null || !File.Exists(job.InputPath))
             return;
 
         var sourceFile =
             Path.Combine(job.OutputDirectory, "source", $"{job.VideoId}{Path.GetExtension(job.InputPath)}");
-
-        // Copy temp file to output directory
-        // Do not delete so we have a source if something goes wrong
-
-        if (!File.Exists(job.InputPath)) return;
         Directory.CreateDirectory(Path.GetDirectoryName(sourceFile));
-        File.Copy(job.InputPath, sourceFile);
 
-        var videoInfo = await ffmpegService.GetMediaInfo(sourceFile, stoppingToken);
+        if (job.EndTime > job.StartTime)
+        {
+            var tempSource = Path.Combine(job.OutputDirectory, "source", "original",
+                $"{job.VideoId}{Path.GetExtension(job.InputPath)}");
 
+            Directory.CreateDirectory(Path.GetDirectoryName(tempSource));
+            File.Copy(job.InputPath, tempSource);
+            await ffmpegService.TrimVideo(tempSource, sourceFile, job.StartTime, job.EndTime);
+            LogTrimVideo(logger, job.JobId, job.VideoId, job.StartTime, job.EndTime);
+        }
+        else
+        {
+            File.Copy(job.InputPath, sourceFile);
+        }
 
         if (!File.Exists(sourceFile)) return;
+        var videoInfo = await ffmpegService.GetMediaInfo(sourceFile, stoppingToken);
+
         // Fix hls path to include file id
         var hlsPath = Path.Combine(job.OutputDirectory, "hls", job.VideoId);
-        await ffmpegService.ConvertToHls(sourceFile, hlsPath, job.StartTime, job.EndTime, stoppingToken);
+        await ffmpegService.ConvertToHls(sourceFile, hlsPath, stoppingToken);
 
         if (!File.Exists(sourceFile)) return;
         // Generate thumbnail
@@ -55,9 +63,7 @@ public partial class VideoConversionWorker(
         await ffmpegService.GenerateThumbnail(sourceFile, thumbnailPath, stoppingToken);
 
         var dbVideo = await dbContext.VideoClips.FirstAsync(video => video.VideoId == job.VideoId, stoppingToken);
-        dbVideo.Duration = job.EndTime.HasValue && job.EndTime > job.StartTime
-            ? TimeSpan.FromSeconds(job.EndTime.Value - job.StartTime)
-            : videoInfo.Duration;
+        dbVideo.Duration = videoInfo.Duration;
         dbVideo.Thumbnail = $"/thumbnails/{job.VideoId}.jpg";
         dbVideo.HlsPlaylistFile = $"/hls/{job.VideoId}/playlist.m3u8";
         dbVideo.Processed = true;
@@ -84,4 +90,8 @@ public partial class VideoConversionWorker(
 
     [LoggerMessage(LogLevel.Error, "Unable to delete temporary file {path}")]
     static partial void LogUnableToDeleteTempFile(ILogger<VideoConversionWorker> logger, string path);
+
+    [LoggerMessage(LogLevel.Information, "Trimmed video for {job} - {videoId} [{start} - {end}]")]
+    static partial void LogTrimVideo(
+        ILogger<VideoConversionWorker> logger, Guid job, string videoId, int start, int? end);
 }

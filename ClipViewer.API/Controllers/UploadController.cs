@@ -56,10 +56,11 @@ public class UploadController(
         var conversionJob = new VideoConversionJob(int.Parse(userId), filePath, _outputVideoFolder,
             jobId);
 
-        if (startTime is > 0)
-            conversionJob.StartTime = startTime.Value;
         if (endTime is > 0 && endTime > startTime)
+        {
+            conversionJob.StartTime = startTime.Value;
             conversionJob.EndTime = endTime.Value;
+        }
 
         if (!string.IsNullOrEmpty(name))
             conversionJob.Name = name;

@@ -6,21 +6,13 @@ namespace ClipViewer.API.Services;
 public class FFMpegService : IFFmpegService
 {
     public async Task ConvertToHls(
-        string videoFile, string destinationFolder, int startTime = 0, int? endTime = null,
+        string videoFile, string destinationFolder,
         CancellationToken stoppingToken = default)
     {
         Directory.CreateDirectory(destinationFolder);
         var conversion = FFmpeg.Conversions
             .New()
-            .AddParameter($"-i \"{videoFile}\""); // Input file
-
-        if (startTime > 0)
-            conversion.AddParameter($"-ss {startTime}");
-
-        if (endTime > startTime)
-            conversion.AddParameter($"-to {endTime}");
-
-        conversion
+            .AddParameter($"-i \"{videoFile}\"") // Input file
             .AddParameter("-c:v libx264") // Video codec
             .AddParameter("-profile:v main") // H.264 profile
             .AddParameter("-level 4.0") // H.264 level
@@ -37,6 +29,20 @@ public class FFMpegService : IFFmpegService
             .AddParameter($"\"{destinationFolder}/playlist.m3u8\""); // Output playlist path;
 
         await conversion.Start(stoppingToken);
+    }
+
+    public async Task TrimVideo(string videoFilePath, string destinationFile, int startTime = 0, int? endTime = null)
+    {
+        var conversion = FFmpeg.Conversions.New()
+            .AddParameter($"-i \"{videoFilePath}\"") // input
+            .AddParameter($"-ss {startTime}") // start (seconds)
+            .AddParameter($"-to {endTime}") // end (absolute seconds)
+            .AddParameter("-c:v libx264") // re-encode video
+            .AddParameter("-c:a aac") // re-encode audio
+            .AddParameter("-movflags +faststart") // web-friendly
+            .SetOutput(destinationFile);
+
+        await conversion.Start();
     }
 
     public async Task GenerateThumbnail(string videoFile, string destinationFile, CancellationToken stoppingToken)
