@@ -17,6 +17,7 @@ const props = defineProps({
 defineExpose({
   goToTime,
   currentTime,
+  refVideo
 })
 const emit = defineEmits(['loaded', 'toggleCinemaMode'])
 

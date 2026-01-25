@@ -1,10 +1,15 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { formatDuration, parseTimeToSeconds } from '@/composables/useDuration.js'
 
 const props = defineProps({
   videoDuration: {
     type: Number,
     default: 0
+  },
+  videoPlayerRef: {
+    type: Object,
+    default: null
   }
 })
 
@@ -12,29 +17,6 @@ const emit = defineEmits(['timestamps-change'])
 
 const startTime = ref('')
 const endTime = ref('')
-
-const formatTime = (seconds) => {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = Math.floor(seconds % 60)
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`
-}
-
-const parseTimeToSeconds = (timeString) => {
-  if (!timeString) return 0
-
-  const parts = timeString.split(':').map(Number)
-  if (parts.length === 2) {
-    return parts[0] * 60 + parts[1]
-  } else if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2]
-  }
-  return 0
-}
 
 const timestampsValid = computed(() => {
   const start = parseTimeToSeconds(startTime.value)
@@ -58,17 +40,15 @@ function onTimeInput() {
 }
 
 function setStartTime() {
-  const video = document.querySelector('video')
-  if (video) {
-    startTime.value = formatTime(video.currentTime)
+  if (props.videoPlayerRef) {
+    startTime.value = formatDuration(props.videoPlayerRef.currentTime)
     onTimeInput()
   }
 }
 
 function setEndTime() {
-  const video = document.querySelector('video')
-  if (video) {
-    endTime.value = formatTime(video.currentTime)
+  if (props.videoPlayerRef) {
+    endTime.value = formatDuration(props.videoPlayerRef.currentTime)
     onTimeInput()
   }
 }
@@ -129,9 +109,9 @@ defineExpose({
 
     <div class="text-sm text-gray-600 dark:text-gray-400">
       <p>Format: MM:SS or H:MM:SS</p>
-      <p>Video duration: {{ formatTime(videoDuration) }}</p>
+      <p>Video duration: {{ formatDuration(videoDuration) }}</p>
       <p v-if="startTime && endTime" :class="{ 'text-red-500': !timestampsValid }">
-        Clip duration: {{ formatTime(parseTimeToSeconds(endTime) - parseTimeToSeconds(startTime)) }}
+        Clip duration: {{ formatDuration(parseTimeToSeconds(endTime) - parseTimeToSeconds(startTime)) }}
       </p>
     </div>
 

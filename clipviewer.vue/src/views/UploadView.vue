@@ -125,6 +125,7 @@ function clearVideoPreview() {
   }
   file.value = null
   timestamps.value = null
+  videoName.value = ''
 }
 
 function onTimestampsChange(newTimestamps) {
@@ -141,6 +142,7 @@ function onTimestampsChange(newTimestamps) {
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <!-- File Drop Area -->
           <div
+            v-if="!videoUrl"
             class="border-2 border-dashed rounded-lg p-8 text-center transition-colors"
             :class="[
               dragOver
@@ -188,6 +190,7 @@ function onTimestampsChange(newTimestamps) {
 
           <!-- Video Upload Preview Component -->
           <VideoUploadPreview
+            v-else
             :video-url="videoUrl"
             :file="file"
             :is-editing-mode="isEditingMode"

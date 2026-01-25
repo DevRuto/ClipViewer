@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import EditBar from './EditBar.vue'
+import VideoPlayer from './VideoPlayer.vue'
 
 const props = defineProps({
   videoUrl: {
@@ -21,10 +22,12 @@ const emit = defineEmits(['clear-preview', 'timestamps-change', 'toggle-edit-mod
 
 const videoDuration = ref(0)
 const editBarRef = ref(null)
+const videoPlayerRef = ref(null)
 
-function onVideoLoaded(event) {
-  const video = event.target
-  videoDuration.value = video.duration
+function onVideoLoaded() {
+  if (videoPlayerRef.value && videoPlayerRef.value.refVideo) {
+    videoDuration.value = videoPlayerRef.value.refVideo.duration
+  }
 }
 
 function onTimestampsChange(timestamps) {
@@ -51,16 +54,13 @@ function clearVideoPreview() {
     </div>
 
     <div class="relative rounded-lg overflow-hidden bg-black" :class="[isEditingMode ? 'max-w-7xl mx-auto' : '']">
-      <video
+      <VideoPlayer
+        ref="videoPlayerRef"
         :src="props.videoUrl"
-        controls
-        class="w-full object-contain"
+        @loaded="onVideoLoaded"
+        class="w-full"
         :class="[isEditingMode ? 'max-h-[70vh]' : 'max-h-96']"
-        preload="metadata"
-        @loadedmetadata="onVideoLoaded"
-      >
-        Your browser does not support the video tag.
-      </video>
+      />
     </div>
 
     <!-- Edit Bar with Toggle -->
@@ -84,6 +84,7 @@ function clearVideoPreview() {
         v-if="isEditingMode"
         ref="editBarRef"
         :video-duration="videoDuration"
+        :video-player-ref="videoPlayerRef"
         @timestamps-change="onTimestampsChange"
       />
     </div>

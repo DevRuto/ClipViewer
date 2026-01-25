@@ -22,6 +22,11 @@ export function formatDuration(duration) {
   // Split into hours, minutes, seconds
   const timeComponents = timePart.split(':').map(Number)
 
+  // Check if any component is invalid (NaN)
+  if (timeComponents.some(isNaN)) {
+    return '0:00'
+  }
+
   let hours = 0
   let minutes = 0
   let seconds = 0
@@ -40,4 +45,16 @@ export function formatDuration(duration) {
   } else {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
+}
+
+export function parseTimeToSeconds(timeString) {
+  if (!timeString) return 0
+
+  const parts = timeString.split(':').map(Number)
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1]
+  } else if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  }
+  return 0
 }
