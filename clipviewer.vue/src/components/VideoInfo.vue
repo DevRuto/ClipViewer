@@ -16,7 +16,7 @@ function debounce(fn, delay) {
 }
 
 const props = defineProps(['video', 'videoPlayer'])
-const emit = defineEmits(['update-video', 'delete-video'])
+const emit = defineEmits(['update-video', 'delete-video', 'refresh-video'])
 
 const includeTimestamp = ref(false)
 const currentTime = ref(0)
@@ -32,6 +32,7 @@ const name = ref(props.video.name)
 const description = ref(props.video.description || '')
 const isEditing = ref(false)
 const showDeleteModal = ref(false)
+const wasProcessing = ref(!props.video.processed)
 
 // Computed property to render description as markdown
 const renderedDescription = computed(() => {
@@ -58,6 +59,18 @@ const debouncedDescriptionUpdate = debounce((newValue) => {
 }, 500)
 
 watch(description, debouncedDescriptionUpdate)
+
+// Watch for video processing status changes
+watch(
+  () => props.video.processed,
+  (newProcessed, oldProcessed) => {
+    if (oldProcessed === false && newProcessed === true) {
+      // Video just finished processing
+      wasProcessing.value = true
+    }
+  },
+  { immediate: true }
+)
 
 function toggleEdit() {
   isEditing.value = !isEditing.value
@@ -90,6 +103,10 @@ function confirmDelete() {
 
 function cancelDelete() {
   showDeleteModal.value = false
+}
+
+function refreshVideo() {
+  emit('refresh-video')
 }
 
 watch(
@@ -185,8 +202,32 @@ watch(
         <div class="animate-spin rounded-full h-5 w-5 border-2 border-yellow-600 border-t-transparent"></div>
         <div class="flex-1">
           <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Video is being processed</p>
-          <p class="text-xs text-yellow-600 dark:text-yellow-400">Refresh the page to check status</p>
+          <p class="text-xs text-yellow-600 dark:text-yellow-400">Automatically checking status every 5 seconds</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Processed success indicator with refresh button -->
+    <div v-else-if="video.processed && wasProcessing" class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+      <div class="flex items-center gap-3">
+        <div class="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
+          <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-green-800 dark:text-green-200">Video processing complete!</p>
+          <p class="text-xs text-green-600 dark:text-green-400">Your video is now available in high quality</p>
+        </div>
+        <button
+          @click="refreshVideo"
+          class="inline-flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          Refresh
+        </button>
       </div>
     </div>
 

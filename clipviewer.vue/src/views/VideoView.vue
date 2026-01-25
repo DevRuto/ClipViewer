@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import VideoPlayer from '@/components/VideoPlayer.vue'
@@ -11,6 +11,7 @@ const video = ref(null)
 const loading = ref(true)
 const videoPlayer = ref(null)
 const isCinemaMode = ref(false)
+const pollingInterval = ref(null)
 
 const videoSource = computed(() => {
   if (video.value?.processed) {
@@ -19,7 +20,7 @@ const videoSource = computed(() => {
   return video.value?.sourceVideoFile
 })
 
-onMounted(async () => {
+async function fetchVideo() {
   try {
     const response = await api.get(`/api/videos/${route.params.videoId}`)
     if (response.status === 200) {
@@ -28,11 +29,43 @@ onMounted(async () => {
       if (video.value.name) {
         document.title = `${video.value.name} - ClipViewer`
       }
+
+      // Stop polling if video is processed
+      if (video.value.processed && pollingInterval.value) {
+        clearInterval(pollingInterval.value)
+        pollingInterval.value = null
+      }
     }
   } catch (error) {
     console.error('Failed to fetch video:', error)
-  } finally {
-    loading.value = false
+  }
+}
+
+function startPolling() {
+  if (pollingInterval.value) return
+
+  pollingInterval.value = setInterval(() => {
+    if (video.value && !video.value.processed) {
+      fetchVideo()
+    }
+  }, 5000) // Poll every 5 seconds
+}
+
+onMounted(async () => {
+  await fetchVideo()
+
+  // Start polling if video is not processed
+  if (video.value && !video.value.processed) {
+    startPolling()
+  }
+
+  loading.value = false
+})
+
+onUnmounted(() => {
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
   }
 })
 
@@ -70,6 +103,12 @@ async function deleteVideo() {
 function onToggleCinemaMode(cinemaModeState) {
   isCinemaMode.value = cinemaModeState
 }
+
+async function refreshVideo() {
+  loading.value = true
+  await fetchVideo()
+  loading.value = false
+}
 </script>
 
 <template>
@@ -98,6 +137,7 @@ function onToggleCinemaMode(cinemaModeState) {
           :videoPlayer="videoPlayer"
           @update-video="updateVideo"
           @delete-video="deleteVideo"
+          @refresh-video="refreshVideo"
         />
       </div>
     </div>
