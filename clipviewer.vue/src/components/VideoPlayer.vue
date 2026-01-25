@@ -50,6 +50,15 @@ function onCinemaModeToggle(event) {
 </script>
 
 <template>
+  <!-- Loading state -->
+  <div v-if="!videoLoaded" class="aspect-video bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+    <div class="text-center">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+      <p class="text-gray-600 dark:text-gray-400 text-sm">Loading video...</p>
+    </div>
+  </div>
+
+  <!-- Video player -->
   <media-controller v-show="videoLoaded">
     <video v-if="!isHLS" :src="props.src" slot="media" ref="refVideo"></video>
     <hls-video v-else :src="props.src" crossorigin slot="media" ref="refVideo"></hls-video>
