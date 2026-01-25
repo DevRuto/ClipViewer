@@ -5,12 +5,22 @@ namespace ClipViewer.API.Services;
 
 public class FFMpegService : IFFmpegService
 {
-    public async Task ConvertToHls(string videoFile, string destinationFolder, CancellationToken stoppingToken)
+    public async Task ConvertToHls(
+        string videoFile, string destinationFolder, int startTime = 0, int? endTime = null,
+        CancellationToken stoppingToken = default)
     {
         Directory.CreateDirectory(destinationFolder);
         var conversion = FFmpeg.Conversions
             .New()
-            .AddParameter($"-i \"{videoFile}\"") // Input file
+            .AddParameter($"-i \"{videoFile}\""); // Input file
+
+        if (startTime > 0)
+            conversion.AddParameter($"-ss {startTime}");
+
+        if (endTime > startTime)
+            conversion.AddParameter($"-to {endTime}");
+
+        conversion
             .AddParameter("-c:v libx264") // Video codec
             .AddParameter("-profile:v main") // H.264 profile
             .AddParameter("-level 4.0") // H.264 level

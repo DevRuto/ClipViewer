@@ -47,7 +47,7 @@ public partial class VideoConversionWorker(
         if (!File.Exists(sourceFile)) return;
         // Fix hls path to include file id
         var hlsPath = Path.Combine(job.OutputDirectory, "hls", job.VideoId);
-        await ffmpegService.ConvertToHls(sourceFile, hlsPath, stoppingToken);
+        await ffmpegService.ConvertToHls(sourceFile, hlsPath, job.StartTime, job.EndTime, stoppingToken);
 
         if (!File.Exists(sourceFile)) return;
         // Generate thumbnail
@@ -55,7 +55,9 @@ public partial class VideoConversionWorker(
         await ffmpegService.GenerateThumbnail(sourceFile, thumbnailPath, stoppingToken);
 
         var dbVideo = await dbContext.VideoClips.FirstAsync(video => video.VideoId == job.VideoId, stoppingToken);
-        dbVideo.Duration = videoInfo.Duration;
+        dbVideo.Duration = job.EndTime.HasValue && job.EndTime > job.StartTime
+            ? TimeSpan.FromSeconds(job.EndTime.Value - job.StartTime)
+            : videoInfo.Duration;
         dbVideo.Thumbnail = $"/thumbnails/{job.VideoId}.jpg";
         dbVideo.HlsPlaylistFile = $"/hls/{job.VideoId}/playlist.m3u8";
         dbVideo.Processed = true;

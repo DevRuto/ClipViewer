@@ -36,7 +36,9 @@ public class UploadController(
     [DisableRequestSizeLimit]
     public async Task<IActionResult> Upload(
         [FromHeader(Name = "Content-Type")] string contentType,
-        [FromQuery] string? name = "")
+        [FromQuery] string? name = "",
+        [FromQuery] int? startTime = null,
+        [FromQuery] int? endTime = null)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -53,6 +55,12 @@ public class UploadController(
         var jobId = Guid.NewGuid();
         var conversionJob = new VideoConversionJob(int.Parse(userId), filePath, _outputVideoFolder,
             jobId);
+
+        if (startTime is > 0)
+            conversionJob.StartTime = startTime.Value;
+        if (endTime is > 0 && endTime > startTime)
+            conversionJob.EndTime = endTime.Value;
+
         if (!string.IsNullOrEmpty(name))
             conversionJob.Name = name;
         var videoId =

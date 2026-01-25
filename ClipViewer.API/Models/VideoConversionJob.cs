@@ -9,6 +9,9 @@ public class VideoConversionJob(int authorId, string inputPath, string outputDir
     public int AuthorId { get; set; } = authorId;
     public string? Name { get; set; }
 
+    public int StartTime { get; set; } = 0;
+    public int? EndTime { get; set; } = null;
+
     public override string ToString()
     {
         return $"{JobId}: {InputPath}";
