@@ -59,6 +59,7 @@ defineExpose({
 })
 
 onMounted(() => {
+  endTime.value = formatDuration(props.videoDuration)
   onTimeInput()
 })
 </script>
