@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { formatDuration, parseTimeToSeconds } from '@/composables/useDuration.js'
 
 const props = defineProps({
@@ -15,7 +15,7 @@ const props = defineProps({
 
 const emit = defineEmits(['timestamps-change'])
 
-const startTime = ref('')
+const startTime = ref('0:00')
 const endTime = ref('')
 
 const timestampsValid = computed(() => {
@@ -56,6 +56,10 @@ function setEndTime() {
 defineExpose({
   setStartTime,
   setEndTime
+})
+
+onMounted(() => {
+  onTimeInput()
 })
 </script>
 

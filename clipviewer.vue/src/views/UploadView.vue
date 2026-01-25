@@ -66,7 +66,7 @@ async function uploadVideo() {
     return
   }
 
-  if (isEditingMode.value && (!timestamps.value || !timestamps.value.startTime || !timestamps.value.endTime)) {
+  if (isEditingMode.value && (!timestamps.value || timestamps.value.startTime === undefined || timestamps.value.endTime === undefined)) {
     error.value = 'Please set valid start and end times for the clip'
     return
   }

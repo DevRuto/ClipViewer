@@ -26,6 +26,7 @@ const { stringToColor, getContrastColor } = useAuthorColor()
 const ownsVideo = computed(() => user.value?.username === props.video.author)
 const authorColor = stringToColor(props.video.author)
 const textColor = getContrastColor(authorColor)
+const isProcessing = computed(() => !props.video.processed)
 const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
 const description = ref(props.video.description || '')
@@ -175,6 +176,17 @@ watch(
           </svg>
           Delete Video
         </button>
+      </div>
+    </div>
+
+    <!-- Processing indicator -->
+    <div v-if="isProcessing" class="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+      <div class="flex items-center gap-3">
+        <div class="animate-spin rounded-full h-5 w-5 border-2 border-yellow-600 border-t-transparent"></div>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Video is being processed</p>
+          <p class="text-xs text-yellow-600 dark:text-yellow-400">Refresh the page to check status</p>
+        </div>
       </div>
     </div>
 
