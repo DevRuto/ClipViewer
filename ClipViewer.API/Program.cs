@@ -14,182 +14,202 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 
-// Download FFmpeg
-var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
-FFmpeg.SetExecutablesPath(ffmpegFolder);
-await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegFolder);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-var spaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "clipviewer.vue", "dist");
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSpaStaticFiles(options => options.RootPath = spaPath);
-
-// Add services to the container.
-builder.Services.AddSingleton<IFFmpegService, FFMpegService>();
-
-builder.Services.AddSingleton(
-    Channel.CreateUnbounded<VideoConversionJob>(
-        new UnboundedChannelOptions
-        {
-            SingleReader = false,
-            SingleWriter = false
-        }));
-builder.Services.AddSingleton<IVideoJobQueue, VideoJobQueue>();
-builder.Services.Configure<HostOptions>(hostOptions =>
+try
 {
-    hostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
-});
-builder.Services.AddHostedService<VideoConversionWorker>();
+    // Download FFmpeg
+    var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
+    FFmpeg.SetExecutablesPath(ffmpegFolder);
+    await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegFolder);
 
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+    var spaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "clipviewer.vue", "dist");
 
-// Add JWT settings from configuration
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Services.AddSerilog((services, lc) => lc
+        .ReadFrom.Configuration(builder.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
 
-// Add authentication services
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ITokenService, TokenService>();
+    builder.Services.AddSpaStaticFiles(options => options.RootPath = spaPath);
 
-// Add authentication and authorization
-builder.Services
-    .AddAuthentication("JwtOrApiKey")
-    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+    // Add services to the container.
+    builder.Services.AddSingleton<IFFmpegService, FFMpegService>();
+
+    builder.Services.AddSingleton(
+        Channel.CreateUnbounded<VideoConversionJob>(
+            new UnboundedChannelOptions
+            {
+                SingleReader = false,
+                SingleWriter = false
+            }));
+    builder.Services.AddSingleton<IVideoJobQueue, VideoJobQueue>();
+    builder.Services.Configure<HostOptions>(hostOptions =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        hostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+    });
+    builder.Services.AddHostedService<VideoConversionWorker>();
+
+    builder.Services.AddControllers();
+    builder.Services.AddOpenApi();
+
+    // Add JWT settings from configuration
+    builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+
+    // Add authentication services
+    builder.Services.AddScoped<IAuthService, AuthService>();
+    builder.Services.AddScoped<ITokenService, TokenService>();
+
+    // Add authentication and authorization
+    builder.Services
+        .AddAuthentication("JwtOrApiKey")
+        .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]))
-        };
-    })
-    .AddPolicyScheme("JwtOrApiKey", "JWT or API Key", options =>
-    {
-        options.ForwardDefaultSelector = context =>
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+                ValidAudience = builder.Configuration["JwtSettings:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]))
+            };
+        })
+        .AddPolicyScheme("JwtOrApiKey", "JWT or API Key", options =>
         {
-            var authorization = context.Request.Headers.Authorization.ToString();
-            if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer "))
-                return JwtBearerDefaults.AuthenticationScheme;
-            return "ApiKey";
-        };
-    })
-    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthHandler>("ApiKey", null);
+            options.ForwardDefaultSelector = context =>
+            {
+                var authorization = context.Request.Headers.Authorization.ToString();
+                if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer "))
+                    return JwtBearerDefaults.AuthenticationScheme;
+                return "ApiKey";
+            };
+        })
+        .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthHandler>("ApiKey", null);
 
-// Configure authorization
-builder.Services.AddAuthorization(options =>
-{
-    options.DefaultPolicy = new AuthorizationPolicyBuilder()
-        .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey")
-        .RequireAuthenticatedUser()
-        .Build();
-});
-
-// Configure database based on environment
-if (builder.Environment.IsDevelopment() || builder.Environment.IsProduction())
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-else
-    // Use in-memory database for testing
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseInMemoryDatabase("ClipViewerDb"));
-
-var app = builder.Build();
-
-var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
-var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
-var publicFilePath = builder.Configuration.GetSection("UploadOptions").GetSection("PublicFilePath").Value;
-
-// Configure folders
-if (outputVideoFolder is null || tempVideoFolder is null)
-    throw new InvalidOperationException("OutputVideoFolder or TempVideoFolder is not configured");
-if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
-if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
-
-// Create database
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.Migrate();
-}
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-    app.MapOpenApi();
-else
-    // Add SPA template middleware
-    app.UseMiddleware<SpaTemplateMiddleware>(spaPath);
-
-// app.UseHttpsRedirection();
-
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders =
-        ForwardedHeaders.XForwardedProto |
-        ForwardedHeaders.XForwardedHost
-});
-
-app.UseRouting();
-
-// Add authentication and authorization middleware
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Serve static files from output folder
-var outputPath = Path.IsPathRooted(outputVideoFolder)
-    ? outputVideoFolder
-    : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
-
-var contentTypeProvider = new FileExtensionContentTypeProvider
-{
-    Mappings =
+    // Configure authorization
+    builder.Services.AddAuthorization(options =>
     {
-        [".mp4"] = "video/mp4",
-        [".mov"] = "video/mov",
-        [".m3u8"] = "application/x-mpegURL",
-        [".mkv"] = "video/x-matroska"
+        options.DefaultPolicy = new AuthorizationPolicyBuilder()
+            .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey")
+            .RequireAuthenticatedUser()
+            .Build();
+    });
+
+    // Configure database based on environment
+    if (builder.Environment.IsDevelopment() || builder.Environment.IsProduction())
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    else
+        // Use in-memory database for testing
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseInMemoryDatabase("ClipViewerDb"));
+
+    var app = builder.Build();
+
+    var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
+    var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
+    var publicFilePath = builder.Configuration.GetSection("UploadOptions").GetSection("PublicFilePath").Value;
+
+    // Configure folders
+    if (outputVideoFolder is null || tempVideoFolder is null)
+        throw new InvalidOperationException("OutputVideoFolder or TempVideoFolder is not configured");
+    if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
+    if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
+
+    // Create database
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        context.Database.Migrate();
     }
-};
 
-app.UseWhen(
-    context => context.Request.Path.StartsWithSegments(publicFilePath),
-    clipBuilder =>
-    {
-        clipBuilder.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(outputPath),
-            RequestPath = publicFilePath,
-            ContentTypeProvider = contentTypeProvider
-        });
-    });
-
-app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
-    apiBuilder =>
-    {
-        // Require authorization for all API endpoints except auth endpoints
-        apiBuilder.UseEndpoints(endpoints => { endpoints.MapControllers(); });
-    });
-
-// Serve SPA files
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(spaPath)
-});
-
-app.UseSpa(spaBuilder =>
-{
-    spaBuilder.Options.SourcePath = spaPath;
-
+    // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
-        spaBuilder.UseProxyToSpaDevelopmentServer("http://localhost:5173");
-});
+        app.MapOpenApi();
+    else
+        // Add SPA template middleware
+        app.UseMiddleware<SpaTemplateMiddleware>(spaPath);
 
-app.Run();
+    // app.UseHttpsRedirection();
+
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders =
+            ForwardedHeaders.XForwardedProto |
+            ForwardedHeaders.XForwardedHost
+    });
+
+    app.UseRouting();
+
+    // Add authentication and authorization middleware
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    // Serve static files from output folder
+    var outputPath = Path.IsPathRooted(outputVideoFolder)
+        ? outputVideoFolder
+        : Path.Combine(Directory.GetCurrentDirectory(), outputVideoFolder);
+
+    var contentTypeProvider = new FileExtensionContentTypeProvider
+    {
+        Mappings =
+        {
+            [".mp4"] = "video/mp4",
+            [".mov"] = "video/mov",
+            [".m3u8"] = "application/x-mpegURL",
+            [".mkv"] = "video/x-matroska"
+        }
+    };
+
+    app.UseWhen(
+        context => context.Request.Path.StartsWithSegments(publicFilePath),
+        clipBuilder =>
+        {
+            clipBuilder.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new PhysicalFileProvider(outputPath),
+                RequestPath = publicFilePath,
+                ContentTypeProvider = contentTypeProvider
+            });
+        });
+
+    app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
+        apiBuilder =>
+        {
+            // Require authorization for all API endpoints except auth endpoints
+            apiBuilder.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+        });
+
+    // Serve SPA files
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(spaPath)
+    });
+
+    app.UseSpa(spaBuilder =>
+    {
+        spaBuilder.Options.SourcePath = spaPath;
+
+        if (app.Environment.IsDevelopment())
+            spaBuilder.UseProxyToSpaDevelopmentServer("http://localhost:5173");
+    });
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
