@@ -62,8 +62,11 @@ function onCinemaModeToggle(event) {
   <media-controller v-show="videoLoaded">
     <video v-if="!isHLS" :src="props.src" slot="media" ref="refVideo"></video>
     <hls-video v-else :src="props.src" crossorigin slot="media" ref="refVideo"></hls-video>
-
-    <media-loading-indicator slot="centered-chrome" noautohide></media-loading-indicator>
+    <div class="center" slot="centered-chrome">
+      <media-seek-backward-button seekoffset="10"></media-seek-backward-button>
+      <media-play-button></media-play-button>
+      <media-seek-forward-button seekoffset="10"></media-seek-forward-button>
+    </div>
     <media-control-bar>
       <media-play-button></media-play-button>
       <media-seek-backward-button seekoffset="10"></media-seek-backward-button>
@@ -83,3 +86,85 @@ function onCinemaModeToggle(event) {
     </media-control-bar>
   </media-controller>
 </template>
+
+<style scoped>
+media-controller {
+  container-name: media-chrome;
+  container-type: inline-size;
+  width: 100%;
+}
+
+.center {
+  display: none;
+}
+
+@container (inline-size < 420px) {
+  .center {
+    display: block;
+  }
+  media-control-bar media-play-button,
+  media-control-bar media-seek-backward-button,
+  media-control-bar media-seek-forward-button {
+    display: none;
+  }
+}
+
+@container (max-width: 420px) {
+  .center {
+    display: block;
+  }
+  media-play-button,
+  media-seek-backward-button,
+  media-seek-forward-button {
+    width: 35px;
+    height: 40px;
+  }
+}
+
+@container (420px <= inline-size <= 590px) {
+  .center {
+    display: block;
+  }
+  media-control-bar {
+    display: flex;
+  }
+  media-control-bar media-play-button,
+  media-control-bar media-seek-backward-button,
+  media-control-bar media-seek-forward-button {
+    display: none;
+  }
+}
+
+@container (min-width: 420px) and (max-width: 590px) {
+  .center {
+    display: block;
+  }
+  media-control-bar {
+    display: flex;
+  }
+  media-control-bar media-play-button,
+  media-control-bar media-seek-backward-button,
+  media-control-bar media-seek-forward-button {
+    display: none;
+  }
+  media-play-button,
+  media-seek-backward-button,
+  media-seek-forward-button {
+    width: 50px;
+  }
+}
+
+@container (inline-size > 590px) {
+  .center {
+    display: none;
+  }
+  media-control-bar {
+    display: flex;
+  }
+  media-control-bar media-play-button,
+  media-control-bar media-seek-backward-button,
+  media-control-bar media-seek-forward-button {
+    width: 50px;
+  }
+}
+</style>

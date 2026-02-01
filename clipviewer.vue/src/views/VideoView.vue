@@ -113,7 +113,7 @@ async function refreshVideo() {
 </script>
 
 <template>
-  <div :class="['mx-auto px-4 py-8', { container: !isCinemaMode }]">
+  <div :class="['mx-auto px-4 py-8 container']">
     <div v-if="loading" class="text-center py-12">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       <p class="mt-4 text-gray-600 dark:text-gray-400">Loading video...</p>
@@ -121,7 +121,7 @@ async function refreshVideo() {
 
     <div
       v-else-if="video"
-      :class="['mx-auto', { 'max-w-4xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]"
+      :class="['mx-auto', { 'max-w-5xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]"
     >
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
         <div class="aspect-video">
