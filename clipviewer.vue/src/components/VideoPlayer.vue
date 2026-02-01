@@ -151,6 +151,7 @@ media-controller {
   media-seek-backward-button,
   media-seek-forward-button {
     width: 50px;
+    height: 40px;
   }
 }
 
