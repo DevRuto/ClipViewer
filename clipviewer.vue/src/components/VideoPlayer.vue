@@ -74,7 +74,7 @@ function onCinemaModeToggle(event) {
       <media-mute-button></media-mute-button>
       <media-volume-range></media-volume-range>
       <media-time-range></media-time-range>
-      <media-time-display showduration remaining></media-time-display>
+      <media-time-display showduration></media-time-display>
       <media-playback-rate-button></media-playback-rate-button>
       <media-cinema-button
         class="hidden sm:flex"
