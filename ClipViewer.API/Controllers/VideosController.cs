@@ -1,7 +1,7 @@
 using System.Security.Claims;
-using ClipViewer.API.Data;
 using ClipViewer.API.Models;
 using ClipViewer.API.Models.DTOs;
+using ClipViewer.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
