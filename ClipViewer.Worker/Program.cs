@@ -21,4 +21,14 @@ builder.Services.AddSingleton<IFFmpegService, FFMpegService>();
 builder.Services.AddHostedService<VideoConversionWorker>();
 
 var host = builder.Build();
+
+var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
+var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
+
+// Configure folders
+if (outputVideoFolder is null || tempVideoFolder is null)
+    throw new InvalidOperationException("OutputVideoFolder or TempVideoFolder is not configured");
+if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
+if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
+
 host.Run();

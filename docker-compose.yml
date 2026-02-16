@@ -40,6 +40,9 @@ services:
     build:
       context: .
       dockerfile: ClipViewer.Worker/Dockerfile
+    volumes:
+      - ./output:/app/output
+      - ./worker-logs:/app/logs
     depends_on:
       db:
         condition: service_healthy

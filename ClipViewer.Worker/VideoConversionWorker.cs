@@ -15,8 +15,30 @@ public partial class VideoConversionWorker(
         await using var scope = serviceScopeFactory.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // while (!stoppingToken.IsCancellationRequested)
-        // await ProcessAsync(job, dbContext, stoppingToken);
+        while (!stoppingToken.IsCancellationRequested)
+            try
+            {
+                var job = await dbContext.VideoConversionJobs
+                    .OrderBy(j => j.CreatedAt)
+                    .FirstOrDefaultAsync(j => j.Status == "Pending", stoppingToken);
+                if (job is null)
+                {
+                    await Task.Delay(1000, stoppingToken);
+                    continue;
+                }
+
+                ;
+                job.Status = "Processing";
+                job.StartedAt = DateTime.UtcNow;
+
+                await dbContext.SaveChangesAsync(stoppingToken);
+                await ProcessAsync(job, dbContext, stoppingToken);
+            }
+            finally
+            {
+                // Sleep for 1 second
+                await Task.Delay(1000, stoppingToken);
+            }
     }
 
     private async Task ProcessAsync(

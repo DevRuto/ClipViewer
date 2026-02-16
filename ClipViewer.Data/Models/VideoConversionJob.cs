@@ -6,13 +6,13 @@ namespace ClipViewer.Data.Models;
 public class VideoConversionJob(int authorId, string inputPath, string outputDirectory, Guid jobId)
 {
     public int Id { get; set; }
-    
+
     [Required]
     public Guid VideoClipId { get; set; }
 
     [ForeignKey("VideoClipId")]
     public VideoClip VideoClip { get; set; } = null!;
-    
+
     public string? VideoId { get; set; }
     public string InputPath { get; } = inputPath;
     public string OutputDirectory { get; } = outputDirectory;
@@ -27,6 +27,7 @@ public class VideoConversionJob(int authorId, string inputPath, string outputDir
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public string Status { get; set; } = "Pending";
+    public int Progress { get; set; } = 0;
 
     public override string ToString()
     {
