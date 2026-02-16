@@ -32,6 +32,18 @@ services:
     ports:
       - "5000:80"
     restart: unless-stopped
+    
+  
+  worker:
+    container_name: clipviewer-worker
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: ClipViewer.Worker/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+

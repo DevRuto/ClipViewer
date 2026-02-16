@@ -6,6 +6,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipViewer.API", "ClipViewe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipViewer.UnitTests", "ClipViewer.UnitTests\ClipViewer.UnitTests.csproj", "{C32D8AD6-35D1-4042-9114-CF337C5C7CED}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipViewer.Worker", "ClipViewer.Worker\ClipViewer.Worker.csproj", "{1454E142-51A4-4C9E-84AA-BAAEA0FF4CA3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClipViewer.Data", "ClipViewer.Data\ClipViewer.Data.csproj", "{B8F330C8-DFEF-4DEE-AEA2-FCE67955D274}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +24,14 @@ Global
 		{C32D8AD6-35D1-4042-9114-CF337C5C7CED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C32D8AD6-35D1-4042-9114-CF337C5C7CED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C32D8AD6-35D1-4042-9114-CF337C5C7CED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1454E142-51A4-4C9E-84AA-BAAEA0FF4CA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1454E142-51A4-4C9E-84AA-BAAEA0FF4CA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1454E142-51A4-4C9E-84AA-BAAEA0FF4CA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1454E142-51A4-4C9E-84AA-BAAEA0FF4CA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8F330C8-DFEF-4DEE-AEA2-FCE67955D274}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8F330C8-DFEF-4DEE-AEA2-FCE67955D274}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8F330C8-DFEF-4DEE-AEA2-FCE67955D274}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8F330C8-DFEF-4DEE-AEA2-FCE67955D274}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
