@@ -96,18 +96,18 @@ try
         .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthHandler>("ApiKey", null);
 
     // Configure authorization
-    builder.Services.AddAuthorization(options =>
-    {
-        options.DefaultPolicy = new AuthorizationPolicyBuilder()
+    builder.Services.AddAuthorizationBuilder()
+        // Configure authorization
+        .SetDefaultPolicy(new AuthorizationPolicyBuilder()
             .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme, "ApiKey")
             .RequireAuthenticatedUser()
-            .Build();
-    });
+            .Build());
 
     // Configure database based on environment
     if (builder.Environment.IsDevelopment() || builder.Environment.IsProduction())
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+                npgsql => npgsql.MigrationsAssembly("ClipViewer.API")));
     else
         // Use in-memory database for testing
         builder.Services.AddDbContext<ApplicationDbContext>(options =>
