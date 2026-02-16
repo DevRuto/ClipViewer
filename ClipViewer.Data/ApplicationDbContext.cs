@@ -1,4 +1,4 @@
-using ClipViewer.API.Models;
+using ClipViewer.Data.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClipViewer.Data;

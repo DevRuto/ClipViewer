@@ -1,4 +1,4 @@
-﻿using ClipViewer.API.Models;
+﻿using ClipViewer.Data.Models;
 
 namespace ClipViewer.API.Interfaces;
 

@@ -1,6 +1,6 @@
 ﻿using Xabe.FFmpeg;
 
-namespace ClipViewer.API.Interfaces;
+namespace ClipViewer.Worker.Interfaces;
 
 public interface IFFmpegService
 {

@@ -1,7 +1,6 @@
-using System.Threading.Channels;
-using ClipViewer.API.Interfaces;
-using ClipViewer.API.Models;
-using ClipViewer.API.Services;
+using ClipViewer.Data.Models;
+using ClipViewer.Worker;
+using ClipViewer.Worker.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
 
@@ -9,7 +8,6 @@ namespace ClipViewer.UnitTests;
 
 public class VideoConversionWorkerTests : IDisposable
 {
-    private readonly Channel<VideoConversionJob> _channel;
     private readonly Mock<IFFmpegService> _mockFfmpegService;
     private readonly Mock<ILogger<VideoConversionWorker>> _mockLogger;
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory;
@@ -34,7 +32,6 @@ public class VideoConversionWorkerTests : IDisposable
 
         _mockLogger = new Mock<ILogger<VideoConversionWorker>>();
         _mockFfmpegService = new Mock<IFFmpegService>();
-        _channel = Channel.CreateUnbounded<VideoConversionJob>();
         _mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
     }
 
@@ -63,12 +60,8 @@ public class VideoConversionWorkerTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var worker = new VideoConversionWorker(_mockLogger.Object, _channel, _mockFfmpegService.Object,
+        var worker = new VideoConversionWorker(_mockLogger.Object, _mockFfmpegService.Object,
             _mockServiceScopeFactory.Object);
-
-        // Act
-        await _channel.Writer.WriteAsync(job);
-        _channel.Writer.Complete();
 
         // Give the worker time to process the job
         await worker.StartAsync(CancellationToken.None);
@@ -88,12 +81,8 @@ public class VideoConversionWorkerTests : IDisposable
             VideoId = "test_video"
         };
 
-        var worker = new VideoConversionWorker(_mockLogger.Object, _channel, _mockFfmpegService.Object,
+        var worker = new VideoConversionWorker(_mockLogger.Object, _mockFfmpegService.Object,
             _mockServiceScopeFactory.Object);
-
-        // Act
-        await _channel.Writer.WriteAsync(job);
-        _channel.Writer.Complete();
 
         // Give the worker time to process the job
         await worker.StartAsync(CancellationToken.None);
@@ -124,12 +113,8 @@ public class VideoConversionWorkerTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("FFmpeg conversion failed"));
 
-        var worker = new VideoConversionWorker(_mockLogger.Object, _channel, _mockFfmpegService.Object,
+        var worker = new VideoConversionWorker(_mockLogger.Object, _mockFfmpegService.Object,
             _mockServiceScopeFactory.Object);
-
-        // Act
-        await _channel.Writer.WriteAsync(job);
-        _channel.Writer.Complete();
 
         // Give the worker time to process the job
         await worker.StartAsync(CancellationToken.None);

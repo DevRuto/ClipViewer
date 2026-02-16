@@ -1,14 +1,12 @@
 ﻿using System.Security.Cryptography;
-using System.Threading.Channels;
 using ClipViewer.API.Interfaces;
-using ClipViewer.API.Models;
 using ClipViewer.Data;
+using ClipViewer.Data.Models;
 
 namespace ClipViewer.API.Services;
 
 public partial class VideoJobQueue(
     IServiceScopeFactory serviceScopeFactory,
-    Channel<VideoConversionJob> channel,
     ILogger<VideoJobQueue> logger) : IVideoJobQueue
 {
     public async ValueTask<string> EnqueueAsync(VideoConversionJob job, CancellationToken stoppingToken = default)
@@ -34,7 +32,6 @@ public partial class VideoJobQueue(
         await dbContext.VideoClips.AddAsync(dbVideo, stoppingToken);
         await dbContext.SaveChangesAsync(stoppingToken);
 
-        await channel.Writer.WriteAsync(job, stoppingToken);
         return job.VideoId;
     }
 

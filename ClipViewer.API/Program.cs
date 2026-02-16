@@ -1,8 +1,6 @@
 using System.Text;
-using System.Threading.Channels;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Middleware;
-using ClipViewer.API.Models;
 using ClipViewer.API.Models.Auth;
 using ClipViewer.API.Services;
 using ClipViewer.Data;
@@ -15,8 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using Xabe.FFmpeg;
-using Xabe.FFmpeg.Downloader;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -24,11 +20,6 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    // Download FFmpeg
-    var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
-    FFmpeg.SetExecutablesPath(ffmpegFolder);
-    await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegFolder);
-
     var spaPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "clipviewer.vue", "dist");
 
     var builder = WebApplication.CreateBuilder(args);
@@ -39,22 +30,7 @@ try
 
     builder.Services.AddSpaStaticFiles(options => options.RootPath = spaPath);
 
-    // Add services to the container.
-    builder.Services.AddSingleton<IFFmpegService, FFMpegService>();
-
-    builder.Services.AddSingleton(
-        Channel.CreateUnbounded<VideoConversionJob>(
-            new UnboundedChannelOptions
-            {
-                SingleReader = false,
-                SingleWriter = false
-            }));
     builder.Services.AddSingleton<IVideoJobQueue, VideoJobQueue>();
-    builder.Services.Configure<HostOptions>(hostOptions =>
-    {
-        hostOptions.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
-    });
-    builder.Services.AddHostedService<VideoConversionWorker>();
 
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();

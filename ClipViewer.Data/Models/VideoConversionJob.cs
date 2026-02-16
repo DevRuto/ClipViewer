@@ -1,4 +1,4 @@
-﻿namespace ClipViewer.API.Models;
+﻿namespace ClipViewer.Data.Models;
 
 public class VideoConversionJob(int authorId, string inputPath, string outputDirectory, Guid jobId)
 {

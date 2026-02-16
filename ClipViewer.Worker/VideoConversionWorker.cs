@@ -1,14 +1,12 @@
-﻿using System.Threading.Channels;
-using ClipViewer.API.Interfaces;
-using ClipViewer.API.Models;
 using ClipViewer.Data;
+using ClipViewer.Data.Models;
+using ClipViewer.Worker.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace ClipViewer.API.Services;
+namespace ClipViewer.Worker;
 
 public partial class VideoConversionWorker(
     ILogger<VideoConversionWorker> logger,
-    Channel<VideoConversionJob> channel,
     IFFmpegService ffmpegService,
     IServiceScopeFactory serviceScopeFactory) : BackgroundService
 {
@@ -16,8 +14,9 @@ public partial class VideoConversionWorker(
     {
         await using var scope = serviceScopeFactory.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await foreach (var job in channel.Reader.ReadAllAsync(stoppingToken))
-            await ProcessAsync(job, dbContext, stoppingToken);
+
+        // while (!stoppingToken.IsCancellationRequested)
+        // await ProcessAsync(job, dbContext, stoppingToken);
     }
 
     private async Task ProcessAsync(

@@ -1,3 +1,5 @@
+using ClipViewer.Data.Models;
+
 namespace ClipViewer.API.Models.DTOs;
 
 public class VideoClipDto

@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ClipViewer.API.Models;
+namespace ClipViewer.Data.Models;
 
 public class VideoClip
 {
