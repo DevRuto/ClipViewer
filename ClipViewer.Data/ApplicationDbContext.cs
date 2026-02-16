@@ -1,7 +1,7 @@
 using ClipViewer.API.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace ClipViewer.API.Data;
+namespace ClipViewer.Data;
 
 public class ApplicationDbContext : DbContext
 {
