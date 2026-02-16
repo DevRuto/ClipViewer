@@ -20,6 +20,7 @@ public partial class VideoJobQueue(
         // Add to db
         var dbVideo = new VideoClip
         {
+            Id = Guid.NewGuid(),
             VideoId = job.VideoId,
             Name = string.IsNullOrEmpty(job.Name) ? job.VideoId : job.Name,
             SourceVideoFile = $"/source/{job.VideoId}{Path.GetExtension(job.InputPath)}",
@@ -30,6 +31,11 @@ public partial class VideoJobQueue(
             UserId = job.AuthorId
         };
         await dbContext.VideoClips.AddAsync(dbVideo, stoppingToken);
+
+        // Add job
+        job.VideoClipId = dbVideo.Id;
+        await dbContext.VideoConversionJobs.AddAsync(job, stoppingToken);
+
         await dbContext.SaveChangesAsync(stoppingToken);
 
         return job.VideoId;
