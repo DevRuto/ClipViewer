@@ -57,7 +57,9 @@ public class VideosController(
             .Include(v => v.User)
             .FirstOrDefaultAsync(v => v.VideoId == videoId);
         if (video == null) return NotFound();
-        return VideoClipDto.FromEntity(video, _publicFilePath);
+
+        var latestJob = await context.VideoConversionJobs.FirstOrDefaultAsync(job => job.VideoClipId == video.Id);
+        return VideoClipDto.FromEntity(video, _publicFilePath, latestJob);
     }
 
     [Authorize]
