@@ -58,7 +58,8 @@ public class VideosController(
             .FirstOrDefaultAsync(v => v.VideoId == videoId);
         if (video == null) return NotFound();
 
-        var latestJob = await context.VideoConversionJobs.FirstOrDefaultAsync(job => job.VideoClipId == video.Id);
+        var latestJob = await context.VideoConversionJobs.OrderByDescending(job => job.CreatedAt)
+            .FirstOrDefaultAsync(job => job.VideoClipId == video.Id);
         return VideoClipDto.FromEntity(video, _publicFilePath, latestJob);
     }
 
@@ -79,7 +80,10 @@ public class VideosController(
         video.Unlisted = request.Unlisted;
         video.Description = request.Description;
         await context.SaveChangesAsync();
-        return VideoClipDto.FromEntity(video, _publicFilePath);
+
+        var latestJob = await context.VideoConversionJobs.OrderByDescending(job => job.CreatedAt)
+            .FirstOrDefaultAsync(job => job.VideoClipId == video.Id);
+        return VideoClipDto.FromEntity(video, _publicFilePath, latestJob);
     }
 
     [Authorize]
