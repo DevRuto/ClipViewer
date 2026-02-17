@@ -1,16 +1,13 @@
-using ClipViewer.API.Models;
+using ClipViewer.Data.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace ClipViewer.API.Data;
+namespace ClipViewer.Data;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
-    {
-    }
-
     public DbSet<VideoClip> VideoClips { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<VideoConversionJob> VideoConversionJobs { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +45,30 @@ public class ApplicationDbContext : DbContext
 
             // Add index to VideoId
             entity.HasIndex(e => e.VideoId);
+        });
+
+        // Configure VideoConversionJob entity
+        modelBuilder.Entity<VideoConversionJob>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VideoClipId).IsRequired();
+            entity.Property(e => e.InputPath).IsRequired();
+            entity.Property(e => e.OutputDirectory).IsRequired();
+            entity.Property(e => e.JobId).IsRequired();
+            entity.Property(e => e.AuthorId).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+
+            // Configure relationship with VideoClip
+            entity.HasOne(v => v.VideoClip)
+                .WithMany()
+                .HasForeignKey(v => v.VideoClipId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Add indexes
+            entity.HasIndex(e => e.JobId).IsUnique();
+            entity.HasIndex(e => e.VideoClipId);
+            entity.HasIndex(e => e.Status);
         });
     }
 

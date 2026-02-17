@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using ClipViewer.API.Interfaces;
-using ClipViewer.API.Models;
+using ClipViewer.Data.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

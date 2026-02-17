@@ -18,6 +18,7 @@ WORKDIR /src
 
 # Copy solution and project files
 COPY ["ClipViewer.API/ClipViewer.API.csproj", "ClipViewer.API/"]
+COPY ["ClipViewer.Data/ClipViewer.Data.csproj", "ClipViewer.Data/"]
 COPY ["ClipViewer.UnitTests/ClipViewer.UnitTests.csproj", "ClipViewer.UnitTests/"]
 RUN dotnet restore "ClipViewer.API/ClipViewer.API.csproj"
 

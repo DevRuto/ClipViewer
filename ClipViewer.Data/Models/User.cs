@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ClipViewer.API.Models;
+namespace ClipViewer.Data.Models;
 
 public class User
 {

@@ -70,6 +70,15 @@ No plans to maintain this project as long as it fits my minimal needs
    npm run dev
    ```
 
+
+## EF Stuff
+```shell
+dotnet ef database update \
+  --project src/ClipViewer.API \
+  --startup-project src/ClipViewer.API \
+  --context ApplicationDbContext
+```
+
 ## Ramble?
 I wanted to create an app that I can self-host to hold videos to share with.
 The various online solutions tend to expire videos after some time from their free tier, or take too long to process (which is fair due to computing power).

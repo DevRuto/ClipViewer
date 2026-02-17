@@ -1,3 +1,5 @@
+using ClipViewer.Data.Models;
+
 namespace ClipViewer.API.Models.DTOs;
 
 public class VideoClipDto
@@ -18,9 +20,12 @@ public class VideoClipDto
     public bool Processed { get; set; }
     public string Author { get; set; } = string.Empty;
     public bool Unlisted { get; set; }
+    public int Progress { get; set; }
+    public string? Status { get; set; }
 
     // Add a static method to map from entity to DTO
-    public static VideoClipDto FromEntity(VideoClip entity, string publicFilePath = "")
+    public static VideoClipDto FromEntity(
+        VideoClip entity, string publicFilePath = "", VideoConversionJob? latestJob = null)
     {
         return new VideoClipDto
         {
@@ -41,7 +46,9 @@ public class VideoClipDto
             CreatedAt = entity.CreatedAt,
             Processed = entity.Processed,
             Author = entity.User?.Username ?? "",
-            Unlisted = entity.Unlisted
+            Unlisted = entity.Unlisted,
+            Progress = latestJob?.Progress ?? 0,
+            Status = latestJob?.Status ?? "Pending"
         };
     }
 }
