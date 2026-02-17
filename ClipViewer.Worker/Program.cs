@@ -1,7 +1,5 @@
 using ClipViewer.Data;
 using ClipViewer.Worker;
-using ClipViewer.Worker.Interfaces;
-using ClipViewer.Worker.Services;
 using Microsoft.EntityFrameworkCore;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
@@ -15,8 +13,6 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddSingleton<IFFmpegService, FFMpegService>();
 
 builder.Services.AddHostedService<VideoConversionWorker>();
 
