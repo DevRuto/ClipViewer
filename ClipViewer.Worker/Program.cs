@@ -1,13 +1,6 @@
 using ClipViewer.Data;
 using ClipViewer.Worker;
 using Microsoft.EntityFrameworkCore;
-using Xabe.FFmpeg;
-using Xabe.FFmpeg.Downloader;
-
-// Download FFmpeg
-var ffmpegFolder = Path.Combine(Environment.CurrentDirectory, "FFmpeg");
-FFmpeg.SetExecutablesPath(ffmpegFolder);
-await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegFolder);
 
 var builder = Host.CreateApplicationBuilder(args);
 

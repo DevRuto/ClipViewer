@@ -52,7 +52,7 @@ public partial class VideoConversionWorker(
             // The queue is setting this
             if (job.VideoId is null || !File.Exists(job.InputPath))
             {
-                LogProcessingFinished(logger, job.JobId, job.VideoId);
+                LogNoProcessingFinished(logger, job.JobId, job.VideoId, job.InputPath);
                 return;
             }
 
@@ -109,7 +109,6 @@ public partial class VideoConversionWorker(
             dbVideo.Processed = true;
             job.CompletedAt = DateTime.UtcNow;
             job.Status = "Completed";
-            await dbContext.SaveChangesAsync(stoppingToken);
 
             try
             {
@@ -125,8 +124,11 @@ public partial class VideoConversionWorker(
         }
         catch (Exception e)
         {
+            job.Status = "Error";
             LogUnableToProcessVideo(logger, job.JobId, e);
         }
+
+        await dbContext.SaveChangesAsync(stoppingToken);
     }
 
     [LoggerMessage(LogLevel.Information, "Processing video conversion job {job}")]
@@ -134,6 +136,10 @@ public partial class VideoConversionWorker(
 
     [LoggerMessage(LogLevel.Information, "Finished processing video conversion job {job} - {videoId}")]
     static partial void LogProcessingFinished(ILogger<VideoConversionWorker> logger, Guid job, string videoId);
+
+    [LoggerMessage(LogLevel.Information, "No processing occured {job} - {videoId} - {path}")]
+    static partial void LogNoProcessingFinished(
+        ILogger<VideoConversionWorker> logger, Guid job, string videoId, string path);
 
     [LoggerMessage(LogLevel.Error, "Unable to delete temporary file {path}")]
     static partial void LogUnableToDeleteTempFile(ILogger<VideoConversionWorker> logger, string path);
