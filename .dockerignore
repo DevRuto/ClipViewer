@@ -15,6 +15,7 @@
 
 # Upload directories
 **/Output
+**/output
 
 # Development and IDE files
 .vs/
