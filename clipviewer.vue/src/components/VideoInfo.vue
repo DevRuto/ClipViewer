@@ -26,7 +26,29 @@ const { stringToColor, getContrastColor } = useAuthorColor()
 const ownsVideo = computed(() => user.value?.username === props.video.author)
 const authorColor = stringToColor(props.video.author)
 const textColor = getContrastColor(authorColor)
-const isProcessing = computed(() => !props.video.processed)
+const normalizedStatus = computed(() => {
+  const status = props.video?.status
+
+  if (status === 'Pending' || status === 'Processing' || status === 'Error' || status === 'Completed') {
+    return status
+  }
+
+  return props.video?.processed ? 'Completed' : 'Processing'
+})
+
+const isProcessing = computed(
+  () => normalizedStatus.value === 'Pending' || normalizedStatus.value === 'Processing',
+)
+
+const isError = computed(() => normalizedStatus.value === 'Error')
+const isCompleted = computed(() => normalizedStatus.value === 'Completed')
+
+const processingProgress = computed(() => {
+  const raw = props.video?.progress
+  const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
+  return Math.min(100, Math.max(0, Math.round(value)))
+})
+
 const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
 const description = ref(props.video.description || '')
@@ -198,18 +220,48 @@ watch(
     </div>
 
     <!-- Processing indicator -->
-    <div v-if="isProcessing" class="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+    <div
+      v-if="isProcessing"
+      class="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+    >
       <div class="flex items-center gap-3">
         <div class="animate-spin rounded-full h-5 w-5 border-2 border-yellow-600 border-t-transparent"></div>
         <div class="flex-1">
-          <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">Video is being processed</p>
-          <p class="text-xs text-yellow-600 dark:text-yellow-400">Automatically checking status every 5 seconds</p>
+          <p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+            Video status: {{ normalizedStatus }} ({{ processingProgress }}%)
+          </p>
+          <div class="mt-2">
+            <div class="w-full h-2 bg-yellow-100 dark:bg-yellow-900/40 rounded">
+              <div
+                class="h-2 bg-yellow-600 rounded transition-all"
+                :style="{ width: `${processingProgress}%` }"
+              ></div>
+            </div>
+          </div>
+          <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-2">Automatically checking status every 5 seconds</p>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-else-if="isError"
+      class="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+    >
+      <div class="flex items-center gap-3">
+        <div class="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center">
+          <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v4m0 4h.01"></path>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-medium text-red-800 dark:text-red-200">Video processing failed</p>
+          <p class="text-xs text-red-600 dark:text-red-400">Status: {{ normalizedStatus }}</p>
         </div>
       </div>
     </div>
 
     <!-- Processed success indicator with refresh button -->
-    <div v-else-if="video.processed && wasProcessing" class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+    <div v-else-if="(isCompleted || video.processed) && wasProcessing" class="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
       <div class="flex items-center gap-3">
         <div class="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
           <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
