@@ -9,6 +9,8 @@ public partial class VideoConversionWorker(
     ILogger<VideoConversionWorker> logger,
     IServiceScopeFactory serviceScopeFactory) : BackgroundService
 {
+    private readonly SemaphoreSlim _lock = new(1, 1);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await using var scope = serviceScopeFactory.CreateAsyncScope();
@@ -89,8 +91,17 @@ public partial class VideoConversionWorker(
             {
                 var percent = (int)(Math.Round(progress.Duration.TotalSeconds / progress.TotalLength.TotalSeconds, 2) *
                                     100);
-                job.Progress = percent;
-                await dbContext.SaveChangesAsync(stoppingToken);
+                await _lock.WaitAsync(stoppingToken);
+                try
+                {
+                    job.Progress = percent;
+                    await dbContext.SaveChangesAsync(stoppingToken);
+                }
+                finally
+                {
+                    _lock.Release();
+                }
+
                 LogVideoProgressUpdated(logger, job.VideoId, percent);
             };
 
