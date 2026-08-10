@@ -56,8 +56,8 @@ function mountUploadView() {
 describe('UploadView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-    global.URL.revokeObjectURL = vi.fn()
+    globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
+    globalThis.URL.revokeObjectURL = vi.fn()
   })
 
   it('accepts a valid video file and defaults the name from the filename', async () => {
@@ -144,7 +144,7 @@ describe('UploadView', () => {
     await selectFile(wrapper, makeVideoFile())
     await wrapper.findComponent(VideoUploadPreview).vm.$emit('clear-preview')
 
-    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
     expect(wrapper.findComponent(VideoUploadPreview).exists()).toBe(false)
   })
 })
