@@ -16,7 +16,7 @@ const title = computed(() => {
     return 'Browse Clips'
   }
 
-  if (!isAuthenticated.value || user.value.username !== username.value) {
+  if (!isAuthenticated.value || user.value.username.toLowerCase() !== username.value?.toLowerCase()) {
     return `${username.value.toLocaleLowerCase()}'s Clips`
   }
 
@@ -51,7 +51,7 @@ watch(
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">Video Library</h2>
           <button
-            v-if="isAuthenticated && user.username === username?.toLowerCase()"
+            v-if="isAuthenticated && user.username.toLowerCase() === username?.toLowerCase()"
             @click="router.push('/upload')"
             class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 cursor-pointer"
           >
