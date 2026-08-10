@@ -35,6 +35,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\ClipViewer.API\ClipViewer.API.csproj"/>
+        <ProjectReference Include="..\ClipViewer.Worker\ClipViewer.Worker.csproj"/>
     </ItemGroup>
 
 </Project>
