@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onUnmounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
@@ -7,13 +7,19 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 
 // Debounce utility function
+const debounceTimeoutIds = []
 function debounce(fn, delay) {
   let timeoutId
   return function (...args) {
     clearTimeout(timeoutId)
     timeoutId = setTimeout(() => fn.apply(this, args), delay)
+    debounceTimeoutIds.push(timeoutId)
   }
 }
+
+onUnmounted(() => {
+  debounceTimeoutIds.forEach(clearTimeout)
+})
 
 const props = defineProps(['video', 'videoPlayer'])
 const emit = defineEmits(['update-video', 'delete-video', 'refresh-video', 'retry-video'])

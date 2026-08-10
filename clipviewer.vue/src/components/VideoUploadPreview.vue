@@ -31,7 +31,7 @@ function onVideoLoaded() {
 }
 
 function onTimestampsChange(timestamps) {
-  emit('timestamps-change', timestamps)
+  emit('timestamps-change', timestamps ? { ...timestamps, videoDuration: videoDuration.value } : null)
 }
 
 function clearVideoPreview() {

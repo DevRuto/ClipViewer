@@ -53,17 +53,15 @@ No plans to maintain this project as long as it fits my minimal needs
 
 1. **Set up the database**
    - Create a new PostgreSQL database
-   - Update the connection string in `appsettings.json`
+   - Update the connection string in `ClipViewer.API/appsettings.Development.json` (and
+     `ClipViewer.Worker/appsettings.Development.json` if you're also running the worker locally)
 
-2. **Run database migrations**
+2. **Start the backend** (run from the repo root)
    ```bash
-   cd ClipViewer.API
+   dotnet run --project ClipViewer.API
    ```
-
-3. **Start the backend**
-   ```bash
-   dotnet run
-   ```
+   Migrations are applied automatically on startup (`context.Database.Migrate()` in `Program.cs`), so
+   there's no separate migration step for local development.
 
 ### Frontend
 
@@ -87,10 +85,11 @@ No plans to maintain this project as long as it fits my minimal needs
   cleanup of orphaned files beyond that (acceptable tradeoff for a personal-scale service).
 
 ## EF Stuff
+Run from the repo root:
 ```shell
 dotnet ef database update \
-  --project src/ClipViewer.API \
-  --startup-project src/ClipViewer.API \
+  --project ClipViewer.API \
+  --startup-project ClipViewer.API \
   --context ApplicationDbContext
 ```
 

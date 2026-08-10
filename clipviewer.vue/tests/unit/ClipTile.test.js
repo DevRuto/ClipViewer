@@ -27,11 +27,10 @@ describe('ClipTile', () => {
     expect(img.attributes('src')).toBe(baseVideo.thumbnail)
   })
 
-  it('renders a placeholder image when there is no thumbnail', () => {
+  it('renders no image (just the background placeholder) when there is no thumbnail', () => {
     const wrapper = mount(ClipTile, { props: { video: { ...baseVideo, thumbnail: '' } } })
 
-    const img = wrapper.find('img')
-    expect(img.attributes('src')).toBe('')
+    expect(wrapper.find('img').exists()).toBe(false)
   })
 
   it('gives the same author consistent badge coloring', () => {

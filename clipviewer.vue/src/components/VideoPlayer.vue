@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import 'media-chrome'
 import 'hls-video-element'
 import '@/external/media-cinema-button.js'
@@ -22,11 +22,34 @@ defineExpose({
 })
 const emit = defineEmits(['loaded', 'toggleCinemaMode'])
 
-const isHLS = props.src.toLocaleLowerCase().endsWith('.m3u8')
+const isHLS = computed(() => props.src.toLocaleLowerCase().endsWith('.m3u8'))
 
-onMounted(() => {
+function attachListeners() {
+  if (!refVideo.value) return
   refVideo.value.addEventListener('loadeddata', onLoaded)
   refVideo.value.addEventListener('timeupdate', onTimeUpdate)
+}
+
+function detachListeners() {
+  if (!refVideo.value) return
+  refVideo.value.removeEventListener('loadeddata', onLoaded)
+  refVideo.value.removeEventListener('timeupdate', onTimeUpdate)
+}
+
+onMounted(() => {
+  attachListeners()
+})
+
+onBeforeUnmount(() => {
+  detachListeners()
+})
+
+// isHLS switches the underlying element between <video> and <hls-video> (v-if/v-else), which
+// unmounts/remounts a new DOM node - re-bind listeners to it once the swap has happened.
+watch(isHLS, async () => {
+  videoLoaded.value = false
+  await nextTick()
+  attachListeners()
 })
 
 function goToTime(time) {

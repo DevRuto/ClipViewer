@@ -51,14 +51,41 @@ public class UploadController(
         if (!VideoExtensions.TryGetValue(contentType, out var extension))
             return BadRequest("Unsupported video type");
 
+        if (!string.IsNullOrEmpty(name) && name.Length > 200)
+            return BadRequest("Name must be 200 characters or fewer");
+
         if (_maxUploadSizeBytes is > 0 && Request.ContentLength > _maxUploadSizeBytes)
             return StatusCode(StatusCodes.Status413PayloadTooLarge,
                 $"File exceeds maximum upload size of {_maxUploadSizeBytes} bytes");
 
-        // Save to temp folder
+        // Save to temp folder, enforcing the cap on actual bytes written since Content-Length can be
+        // absent (e.g. chunked transfer encoding) and isn't trustworthy on its own.
         var filePath = Path.Combine(_tempVideoFolder, $"{Guid.NewGuid()}{extension}");
-        await using var fileStream = new FileStream(filePath, FileMode.Create);
-        await Request.Body.CopyToAsync(fileStream);
+        var tooLarge = false;
+        await using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            var buffer = new byte[81920];
+            long totalBytesRead = 0;
+            int bytesRead;
+            while ((bytesRead = await Request.Body.ReadAsync(buffer)) > 0)
+            {
+                totalBytesRead += bytesRead;
+                if (_maxUploadSizeBytes is > 0 && totalBytesRead > _maxUploadSizeBytes)
+                {
+                    tooLarge = true;
+                    break;
+                }
+
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+            }
+        }
+
+        if (tooLarge)
+        {
+            System.IO.File.Delete(filePath);
+            return StatusCode(StatusCodes.Status413PayloadTooLarge,
+                $"File exceeds maximum upload size of {_maxUploadSizeBytes} bytes");
+        }
 
         // Process file
         var jobId = Guid.NewGuid();

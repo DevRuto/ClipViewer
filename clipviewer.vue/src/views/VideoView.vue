@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, onUnmounted } from 'vue'
+import { onMounted, ref, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import VideoPlayer from '@/components/VideoPlayer.vue'
@@ -58,7 +58,15 @@ function startPolling() {
   }, 5000) // Poll every 5 seconds
 }
 
-onMounted(async () => {
+async function loadVideo() {
+  loading.value = true
+  video.value = null
+  error.value = ''
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
+  }
+
   await fetchVideo()
 
   // Start polling if video is not processed
@@ -67,7 +75,18 @@ onMounted(async () => {
   }
 
   loading.value = false
-})
+}
+
+onMounted(loadVideo)
+
+// Vue Router reuses this component instance when navigating between two /clips/:videoId routes,
+// so onMounted alone won't re-fire - reload explicitly when the param changes.
+watch(
+  () => route.params.videoId,
+  (newId, oldId) => {
+    if (newId !== oldId) loadVideo()
+  },
+)
 
 onUnmounted(() => {
   if (pollingInterval.value) {

@@ -17,12 +17,6 @@ const textColor = getContrastColor(authorColor)
       :alt="video.name"
       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
     />
-    <img
-      v-else
-      src=""
-      :alt="video.name"
-      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-    />
     <div
       class="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded"
     >

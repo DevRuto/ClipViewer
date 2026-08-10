@@ -7,6 +7,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
+var exitCode = 0;
 try
 {
     var builder = Host.CreateApplicationBuilder(args);
@@ -15,8 +16,19 @@ try
         .ReadFrom.Services(services)
         .Enrich.FromLogContext());
 
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    // Fail fast if the DB password is missing or still the .env.example placeholder - mirrors the
+    // same guard in ClipViewer.API/Program.cs.
+    if (string.IsNullOrWhiteSpace(connectionString) ||
+        connectionString.Contains("changeme", StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException(
+            "ConnectionStrings:DefaultConnection is missing or still uses the placeholder " +
+            "'changeme' Postgres password. Set a real password via the POSTGRES_PASSWORD " +
+            "environment variable (see .env.example) before starting the Worker.");
+
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseNpgsql(connectionString));
 
     builder.Services.AddHostedService<VideoConversionWorker>();
 
@@ -36,8 +48,11 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Worker terminated unexpectedly");
+    exitCode = 1;
 }
 finally
 {
     Log.CloseAndFlush();
 }
+
+return exitCode;

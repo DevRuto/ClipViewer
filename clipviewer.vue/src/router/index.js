@@ -44,7 +44,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  const { checkAuth, isAuthenticated } = useAuth()
+  const { checkAuth, isAuthenticated, user } = useAuth()
 
   // Update document title
   if (to.meta.title) {
@@ -64,7 +64,11 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.name === 'login' && isAuthenticated.value) {
-    next('/clips')
+    if (user.value?.username) {
+      next({ name: 'user-clips', params: { username: user.value.username } })
+    } else {
+      next({ name: 'browse' })
+    }
     return
   }
 

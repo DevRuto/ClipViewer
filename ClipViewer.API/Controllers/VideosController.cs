@@ -37,8 +37,8 @@ public class VideosController(
             videoQuery = videoQuery.Where(v =>
                 EF.Functions.ILike(v.User.Username, user));
 
-            // If viewer is NOT logged in, hide unlisted videos
-            if (string.IsNullOrEmpty(currentUser))
+            // Only the owner of the requested user's videos can see their Unlisted ones
+            if (!string.Equals(currentUser, user, StringComparison.OrdinalIgnoreCase))
                 videoQuery = videoQuery.Where(v => !v.Unlisted);
         }
         else
@@ -70,6 +70,11 @@ public class VideosController(
     {
         if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
             return BadRequest("Unable to get user info");
+
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 200)
+            return BadRequest("Name is required and must be 200 characters or fewer");
+        if (request.Description.Length > 1000)
+            return BadRequest("Description must be 1000 characters or fewer");
 
         var video = await context.VideoClips
             .Include(v => v.User)

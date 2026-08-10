@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import VideoUploadPreview from '@/components/VideoUploadPreview.vue'
@@ -88,7 +88,7 @@ async function uploadVideo() {
         timestamps.value.endTime !== undefined &&
         timestamps.value.startTime >= 0 &&
         timestamps.value.endTime > timestamps.value.startTime &&
-        !(timestamps.value.startTime === 0 && timestamps.value.endTime === file.value.duration)) {
+        !(timestamps.value.startTime === 0 && timestamps.value.endTime === Math.floor(timestamps.value.videoDuration))) {
           // Skip adding timestamps if the entire video is being uploaded
           url += `&startTime=${timestamps.value.startTime}&endTime=${timestamps.value.endTime}`
     }
@@ -144,6 +144,12 @@ function clearVideoPreview() {
 function onTimestampsChange(newTimestamps) {
   timestamps.value = newTimestamps
 }
+
+onUnmounted(() => {
+  if (videoUrl.value) {
+    URL.revokeObjectURL(videoUrl.value)
+  }
+})
 </script>
 
 <template>

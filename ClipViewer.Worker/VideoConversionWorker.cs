@@ -13,12 +13,14 @@ public partial class VideoConversionWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await using var scope = serviceScopeFactory.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
         while (!stoppingToken.IsCancellationRequested)
             try
             {
+                // A fresh scope/DbContext per iteration keeps the change tracker from accumulating
+                // every entity ever processed for the lifetime of this long-running service.
+                await using var scope = serviceScopeFactory.CreateAsyncScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
                 var job = await dbContext.VideoConversionJobs
                     .OrderBy(j => j.CreatedAt)
                     .FirstOrDefaultAsync(j => j.Status == "Pending", stoppingToken);
@@ -103,6 +105,8 @@ public partial class VideoConversionWorker(
 
             ffmpegJob.OnProgress += async (_, progress) =>
             {
+                if (progress.TotalLength.TotalSeconds <= 0) return;
+
                 var percent = (int)(Math.Round(progress.Duration.TotalSeconds / progress.TotalLength.TotalSeconds, 2) *
                                     100);
                 await _lock.WaitAsync(stoppingToken);
@@ -222,7 +226,7 @@ public partial class VideoConversionWorker(
         Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
 
         var conversion = FFmpeg.Conversions.New()
-            .AddParameter($"-i {videoFile}")
+            .AddParameter($"-i \"{videoFile}\"")
             .AddParameter("-vf \"thumbnail,scale=640:-1\" -frames:v 1")
             .AddParameter(destinationFile);
 
