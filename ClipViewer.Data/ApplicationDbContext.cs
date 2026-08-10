@@ -68,7 +68,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             // Add indexes
             entity.HasIndex(e => e.JobId).IsUnique();
             entity.HasIndex(e => e.VideoClipId);
-            entity.HasIndex(e => e.Status);
+            // Serves the worker's polling query: WHERE Status = 'Pending' ORDER BY CreatedAt
+            entity.HasIndex(e => new { e.Status, e.CreatedAt });
         });
     }
 

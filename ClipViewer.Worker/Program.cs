@@ -1,23 +1,43 @@
 using ClipViewer.Data;
 using ClipViewer.Worker;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
-var builder = Host.CreateApplicationBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+try
+{
+    var builder = Host.CreateApplicationBuilder(args);
+    builder.Services.AddSerilog((services, lc) => lc
+        .ReadFrom.Configuration(builder.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
 
-builder.Services.AddHostedService<VideoConversionWorker>();
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-var host = builder.Build();
+    builder.Services.AddHostedService<VideoConversionWorker>();
 
-var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
-var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
+    var host = builder.Build();
 
-// Configure folders
-if (outputVideoFolder is null || tempVideoFolder is null)
-    throw new InvalidOperationException("OutputVideoFolder or TempVideoFolder is not configured");
-if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
-if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
+    var outputVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("OutputVideoFolder").Value;
+    var tempVideoFolder = builder.Configuration.GetSection("UploadOptions").GetSection("TempVideoFolder").Value;
 
-host.Run();
+    // Configure folders
+    if (outputVideoFolder is null || tempVideoFolder is null)
+        throw new InvalidOperationException("OutputVideoFolder or TempVideoFolder is not configured");
+    if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
+    if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
+
+    host.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Worker terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

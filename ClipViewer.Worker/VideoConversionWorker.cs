@@ -78,6 +78,16 @@ public partial class VideoConversionWorker(
                 File.Copy(job.InputPath, tempSource);
                 await TrimVideo(tempSource, $"{sourceFile}", job.StartTime, job.EndTime);
                 LogTrimVideo(logger, job.JobId, job.VideoId, job.StartTime, job.EndTime);
+
+                try
+                {
+                    // Delete the untrimmed copy - only sourceFile (the trimmed output) is needed from here on
+                    File.Delete(tempSource);
+                }
+                catch
+                {
+                    LogUnableToDeleteTempFile(logger, tempSource);
+                }
             }
             else
             {

@@ -193,6 +193,72 @@ public class VideosControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task RetryVideo_WithErrorJob_ResetsJobToPending()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "My Video");
+        var job = new VideoConversionJob(1, "/tmp/in.mp4", "/tmp/out", Guid.NewGuid())
+        {
+            VideoClipId = clip.Id,
+            Status = "Error",
+            Progress = 37,
+            StartedAt = DateTime.UtcNow,
+            CompletedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.VideoConversionJobs.Add(job);
+        await _context.SaveChangesAsync();
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.RetryVideo(clip.VideoId);
+
+        var dto = Assert.IsType<VideoClipDto>(result.Value);
+        Assert.Equal("Pending", dto.Status);
+        Assert.Equal(0, dto.Progress);
+
+        var reloaded = await _context.VideoConversionJobs.FirstAsync(j => j.JobId == job.JobId);
+        Assert.Equal("Pending", reloaded.Status);
+        Assert.Equal(0, reloaded.Progress);
+        Assert.Null(reloaded.StartedAt);
+        Assert.Null(reloaded.CompletedAt);
+    }
+
+    [Fact]
+    public async Task RetryVideo_WithNonErrorJob_ReturnsBadRequest()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "My Video");
+        _context.VideoConversionJobs.Add(new VideoConversionJob(1, "/tmp/in.mp4", "/tmp/out", Guid.NewGuid())
+        {
+            VideoClipId = clip.Id,
+            Status = "Completed",
+            CreatedAt = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.RetryVideo(clip.VideoId);
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task RetryVideo_AsNonOwner_ReturnsNotFound()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "My Video");
+        _context.VideoConversionJobs.Add(new VideoConversionJob(1, "/tmp/in.mp4", "/tmp/out", Guid.NewGuid())
+        {
+            VideoClipId = clip.Id,
+            Status = "Error",
+            CreatedAt = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+        var controller = CreateController(userId: 2);
+
+        var result = await controller.RetryVideo(clip.VideoId);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
     public async Task DeleteVideo_AsOwner_RemovesRowAndFiles()
     {
         var (_, clip) = await SeedVideoAsync(1, "My Video");

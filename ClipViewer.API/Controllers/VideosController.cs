@@ -88,6 +88,32 @@ public class VideosController(
     }
 
     [Authorize]
+    [HttpPost("{videoId}/retry")]
+    public async Task<ActionResult<VideoClipDto>> RetryVideo(string videoId)
+    {
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return BadRequest("Unable to get user info");
+
+        var video = await context.VideoClips
+            .Include(v => v.User)
+            .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId);
+        if (video == null) return NotFound();
+
+        var latestJob = await context.VideoConversionJobs.OrderByDescending(job => job.CreatedAt)
+            .FirstOrDefaultAsync(job => job.VideoClipId == video.Id);
+        if (latestJob == null || latestJob.Status != "Error")
+            return BadRequest("Only videos with a failed conversion job can be retried");
+
+        latestJob.Status = "Pending";
+        latestJob.Progress = 0;
+        latestJob.StartedAt = null;
+        latestJob.CompletedAt = null;
+        await context.SaveChangesAsync();
+
+        return VideoClipDto.FromEntity(video, _publicFilePath, latestJob);
+    }
+
+    [Authorize]
     [HttpDelete("{videoId}")]
     public async Task<ActionResult<bool>> DeleteVideo(string videoId)
     {

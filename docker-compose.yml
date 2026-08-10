@@ -4,7 +4,7 @@ services:
     container_name: clipviewer-db
     environment:
       - POSTGRES_USER=clipviewer
-      - POSTGRES_PASSWORD=clipviewer123
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set - see .env.example}
       - POSTGRES_DB=clipviewer
     volumes:
       - postgres_data:/var/lib/postgresql/data/
@@ -26,6 +26,8 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=db;Database=clipviewer;Username=clipviewer;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set - see .env.example}
+      - JwtSettings__Secret=${JWT_SECRET:?JWT_SECRET must be set - see .env.example}
     volumes:
       - ./output:/app/output
       - ./logs:/app/logs
@@ -46,6 +48,8 @@ services:
     build:
       context: .
       dockerfile: ClipViewer.Worker/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=clipviewer;Username=clipviewer;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set - see .env.example}
     volumes:
       - ./output:/app/output
       - ./worker-logs:/app/logs

@@ -25,17 +25,25 @@ No plans to maintain this project as long as it fits my minimal needs
    git clone https://github.com/DevRuto/ClipViewer.git
    cd ClipViewer
    ```
-   
-2. **Start the application**
+
+2. **Configure secrets**
+   ```bash
+   cp .env.example .env
+   ```
+   Then edit `.env` and set `POSTGRES_PASSWORD` and `JWT_SECRET` to real values
+   (e.g. `openssl rand -base64 48` for the JWT secret). The API refuses to start
+   with a missing/placeholder `JWT_SECRET`.
+
+3. **Start the application**
    ```bash
    docker compose up --build
    ```
 
-3. **Access the application**
+4. **Access the application**
    - http://localhost:5000
    - Database: PostgreSQL on port 5432
 
-4. Adding users
+5. Adding users
    - There's a `create_user.sh` script that would connect to the docker postgres db and create a user with the given username
    - There's also `update_user.sh` to change the API key for the given username if needed for any reason
 
@@ -70,6 +78,13 @@ No plans to maintain this project as long as it fits my minimal needs
    npm run dev
    ```
 
+
+## Known limitations
+
+- If the API crashes after accepting an upload but before the worker claims the job, or a conversion
+  job errors out partway through, the temp/partial output files aren't automatically garbage-collected.
+  Use the retry button on a failed clip to reprocess it from the saved temp file; there's no scheduled
+  cleanup of orphaned files beyond that (acceptable tradeoff for a personal-scale service).
 
 ## EF Stuff
 ```shell

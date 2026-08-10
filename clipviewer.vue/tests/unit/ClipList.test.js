@@ -67,6 +67,21 @@ describe('ClipList', () => {
     expect(api.get).toHaveBeenCalledWith('/api/videos')
   })
 
+  it('shows an error message instead of the empty state when the fetch fails', async () => {
+    api.get.mockRejectedValueOnce({ response: { data: { message: 'Server exploded' } } })
+    const router = makeRouter()
+    const wrapper = mount(ClipList, {
+      props: { username: null },
+      global: { plugins: [router] },
+    })
+
+    await wrapper.setProps({ username: 'alice' })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Server exploded')
+    expect(wrapper.text()).not.toContain('No clips uploaded yet')
+  })
+
   it('clears the current list while a new fetch is in flight', async () => {
     let resolveFetch
     api.get.mockReturnValueOnce(

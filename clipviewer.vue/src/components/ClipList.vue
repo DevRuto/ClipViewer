@@ -5,6 +5,7 @@ import ClipTile from './ClipTile.vue'
 import { api } from '@/services/api'
 
 const videos = ref([])
+const error = ref('')
 
 const props = defineProps({
   username: {
@@ -14,9 +15,15 @@ const props = defineProps({
 })
 
 async function fetchVideos() {
-  const usernameParam = props.username ? `?user=${props.username}` : ''
-  const res = await api.get(`/api/videos${usernameParam}`)
-  videos.value = res.data
+  error.value = ''
+  try {
+    const usernameParam = props.username ? `?user=${props.username}` : ''
+    const res = await api.get(`/api/videos${usernameParam}`)
+    videos.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch videos:', err)
+    error.value = err.response?.data?.message || 'Failed to load clips. Please try again.'
+  }
 }
 
 watch(
@@ -30,7 +37,13 @@ watch(
 
 <template>
   <div
-    v-if="videos.length > 0"
+    v-if="error"
+    class="p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-600 rounded-md"
+  >
+    <p class="text-red-700 dark:text-red-400 text-sm">{{ error }}</p>
+  </div>
+  <div
+    v-else-if="videos.length > 0"
     class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
   >
     <RouterLink

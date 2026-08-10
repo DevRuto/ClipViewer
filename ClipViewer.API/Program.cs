@@ -38,6 +38,16 @@ try
     // Add JWT settings from configuration
     builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 
+    // Fail fast if the JWT signing secret hasn't been configured with a real value - running with a
+    // missing/placeholder secret would let anyone forge tokens for any user.
+    var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+    if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32 ||
+        jwtSecret == "YOUR_VERY_LONG_RANDOM_STRING_AT_LEAST_32_CHARACTERS")
+        throw new InvalidOperationException(
+            "JwtSettings:Secret is missing, shorter than 32 characters, or still set to the placeholder " +
+            "value. Set a real secret via the JwtSettings__Secret environment variable (see .env.example) " +
+            "before starting the API.");
+
     // Add authentication services
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<ITokenService, TokenService>();
@@ -55,8 +65,7 @@ try
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
                 ValidAudience = builder.Configuration["JwtSettings:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]))
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
             };
         })
         .AddPolicyScheme("JwtOrApiKey", "JWT or API Key", options =>
