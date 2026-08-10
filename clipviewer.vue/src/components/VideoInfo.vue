@@ -271,9 +271,9 @@ watch(
       </AlertDescription>
     </Alert>
 
-    <!-- Description section -->
-    <div class="mb-4">
-      <div v-if="ownsVideo && isEditing" class="mt-3">
+    <!-- Description section (owner view; non-owners get title+description below) -->
+    <div v-if="ownsVideo" class="mb-4">
+      <div v-if="isEditing" class="mt-3">
         <Textarea v-model="description" rows="3" placeholder="Add a description..." class="resize-none" />
       </div>
       <div v-else-if="description" class="mt-3">

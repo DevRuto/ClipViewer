@@ -30,6 +30,12 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
             {
                 var content = await File.ReadAllTextAsync(filePath);
 
+                // Default template variables, used for all non-clip SPA routes
+                var title = "Ruto's ClipViewer";
+                var description = "Ruto's ClipViewer";
+                var image = "";
+                var url = GetFullUrl(context.Request);
+
                 if (context.Request.Path.StartsWithSegments("/clips", out var remainingPath))
                 {
                     if (!remainingPath.HasValue) return;
@@ -43,13 +49,16 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
                     var video = await db.VideoClips.FirstOrDefaultAsync(video => video.VideoId == videoId);
                     if (video == null) return;
 
-                    // Replace template variables
-                    content = content
-                        .Replace("{{TITLE}}", WebUtility.HtmlEncode(video.Name))
-                        .Replace("{{DESCRIPTION}}", "Ruto's ClipViewer")
-                        .Replace("{{IMAGE}}", WebUtility.HtmlEncode($"{publicPath}{video.Thumbnail}"))
-                        .Replace("{{URL}}", WebUtility.HtmlEncode(GetFullUrl(context.Request)));
+                    title = video.Name;
+                    image = $"{publicPath}{video.Thumbnail}";
                 }
+
+                // Replace template variables
+                content = content
+                    .Replace("{{TITLE}}", WebUtility.HtmlEncode(title))
+                    .Replace("{{DESCRIPTION}}", WebUtility.HtmlEncode(description))
+                    .Replace("{{IMAGE}}", WebUtility.HtmlEncode(image))
+                    .Replace("{{URL}}", WebUtility.HtmlEncode(url));
 
                 context.Response.ContentType = "text/html";
                 await context.Response.WriteAsync(content);
