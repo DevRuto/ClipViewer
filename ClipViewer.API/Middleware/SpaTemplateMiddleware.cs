@@ -32,7 +32,7 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
 
                 // Default template variables, used for all non-clip SPA routes
                 var title = "Ruto's ClipViewer";
-                var description = "Ruto's ClipViewer";
+                var description = "Self-hosted video clip sharing.";
                 var image = "";
                 var url = GetFullUrl(context.Request);
 
@@ -50,6 +50,9 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
                     if (video == null) return;
 
                     title = video.Name;
+                    description = string.IsNullOrWhiteSpace(video.Description)
+                        ? $"Watch \"{video.Name}\" on Ruto's ClipViewer"
+                        : video.Description;
                     image = $"{publicPath}{video.Thumbnail}";
                 }
 
