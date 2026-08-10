@@ -32,7 +32,7 @@ RUN dotnet publish -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y libgssapi-krb5-2
+RUN apt-get update && apt-get install -y libgssapi-krb5-2 curl
 
 # Create the directory structure the API expects
 RUN mkdir -p /clipviewer.vue/dist

@@ -15,6 +15,7 @@ const dragOver = ref(false)
 const videoUrl = ref('')
 const isEditingMode = ref(false)
 const timestamps = ref(null)
+let uploadAbortController = null
 
 function handleFileSelect(event) {
   const selectedFile = event.target.files[0]
@@ -86,14 +87,13 @@ async function uploadVideo() {
         timestamps.value.startTime !== undefined &&
         timestamps.value.endTime !== undefined &&
         timestamps.value.startTime >= 0 &&
-        timestamps.value.endTime > timestamps.value.startTime) {
-          if (timestamps.value.startTime === 0 && timestamps.value.endTime === file.value.duration) {
-            // Don't add timestamps if the entire video is being uploaded
-            return
-          }
+        timestamps.value.endTime > timestamps.value.startTime &&
+        !(timestamps.value.startTime === 0 && timestamps.value.endTime === file.value.duration)) {
+          // Skip adding timestamps if the entire video is being uploaded
           url += `&startTime=${timestamps.value.startTime}&endTime=${timestamps.value.endTime}`
     }
 
+    uploadAbortController = new AbortController()
     const response = await api.post(
       url,
       file.value,
@@ -105,6 +105,7 @@ async function uploadVideo() {
           uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
         },
         timeout: 0,
+        signal: uploadAbortController.signal,
       },
     )
 
@@ -113,15 +114,18 @@ async function uploadVideo() {
       router.push(`/clips/${response.data.videoId}`)
     }
   } catch (err) {
-    error.value = err.response?.data?.message || 'Upload failed. Please try again.'
+    if (err.code !== 'ERR_CANCELED') {
+      error.value = err.response?.data?.message || 'Upload failed. Please try again.'
+    }
   } finally {
     isUploading.value = false
+    uploadAbortController = null
   }
 }
 
 function cancelUpload() {
   if (isUploading.value) {
-    // Note: Actual cancellation would require AbortController implementation
+    uploadAbortController?.abort()
     isUploading.value = false
     uploadProgress.value = 0
   }

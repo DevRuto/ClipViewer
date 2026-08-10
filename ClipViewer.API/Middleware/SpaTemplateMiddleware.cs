@@ -1,3 +1,4 @@
+using System.Net;
 using ClipViewer.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,10 +45,10 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
 
                     // Replace template variables
                     content = content
-                        .Replace("{{TITLE}}", video.Name)
+                        .Replace("{{TITLE}}", WebUtility.HtmlEncode(video.Name))
                         .Replace("{{DESCRIPTION}}", "Ruto's ClipViewer")
-                        .Replace("{{IMAGE}}", $"{publicPath}{video.Thumbnail}")
-                        .Replace("{{URL}}", GetFullUrl(context.Request));
+                        .Replace("{{IMAGE}}", WebUtility.HtmlEncode($"{publicPath}{video.Thumbnail}"))
+                        .Replace("{{URL}}", WebUtility.HtmlEncode(GetFullUrl(context.Request)));
                 }
 
                 context.Response.ContentType = "text/html";

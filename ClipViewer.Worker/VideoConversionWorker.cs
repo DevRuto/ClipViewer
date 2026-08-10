@@ -35,6 +35,10 @@ public partial class VideoConversionWorker(
                 await dbContext.SaveChangesAsync(stoppingToken);
                 await ProcessAsync(job, dbContext, stoppingToken);
             }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                LogPollLoopError(logger, e);
+            }
             finally
             {
                 // Sleep for 1 second
@@ -113,7 +117,13 @@ public partial class VideoConversionWorker(
             var thumbnailPath = Path.Combine(job.OutputDirectory, "thumbnails", $"{job.VideoId}.jpg");
             await GenerateThumbnail(sourceFile, thumbnailPath, stoppingToken);
 
-            var dbVideo = await dbContext.VideoClips.FirstAsync(video => video.VideoId == job.VideoId, stoppingToken);
+            var dbVideo = await dbContext.VideoClips.FirstOrDefaultAsync(video => video.VideoId == job.VideoId, stoppingToken);
+            if (dbVideo is null)
+            {
+                LogVideoDeletedMidConversion(logger, job.JobId, job.VideoId);
+                return;
+            }
+
             dbVideo.Duration = videoInfo.Duration;
             dbVideo.Thumbnail = $"/thumbnails/{job.VideoId}.jpg";
             dbVideo.HlsPlaylistFile = $"/hls/{job.VideoId}/playlist.m3u8";
@@ -161,6 +171,12 @@ public partial class VideoConversionWorker(
 
     [LoggerMessage(LogLevel.Error, "Unable to process video {job}\n{e}")]
     static partial void LogUnableToProcessVideo(ILogger<VideoConversionWorker> logger, Guid job, Exception e);
+
+    [LoggerMessage(LogLevel.Error, "Error in conversion poll loop")]
+    static partial void LogPollLoopError(ILogger<VideoConversionWorker> logger, Exception e);
+
+    [LoggerMessage(LogLevel.Warning, "Video {videoId} for job {job} no longer exists, skipping (likely deleted mid-conversion)")]
+    static partial void LogVideoDeletedMidConversion(ILogger<VideoConversionWorker> logger, Guid job, string videoId);
 
     [LoggerMessage(LogLevel.Information, "Video progress updated {videoId} - {percent}%")]
     static partial void LogVideoProgressUpdated(ILogger<VideoConversionWorker> logger, string videoId, int percent);

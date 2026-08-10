@@ -126,6 +126,8 @@ try
 
     app.UseRouting();
 
+    app.MapGet("/health", () => Results.Ok());
+
     // Add authentication and authorization middleware
     app.UseAuthentication();
     app.UseAuthorization();

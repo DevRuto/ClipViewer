@@ -31,6 +31,10 @@ public class UploadController(
                                                    .GetSection("TempVideoFolder").Value
                                                ?? throw new InvalidOperationException();
 
+    private readonly long? _maxUploadSizeBytes = configuration
+        .GetSection("UploadOptions")
+        .GetValue<long?>("MaxUploadSizeBytes");
+
     [HttpPost]
     [Authorize(AuthenticationSchemes = "JwtOrApiKey")]
     [DisableRequestSizeLimit]
@@ -40,11 +44,16 @@ public class UploadController(
         [FromQuery] int? startTime = null,
         [FromQuery] int? endTime = null)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return BadRequest("Unable to get user info");
 
         // Validate media
         if (!VideoExtensions.TryGetValue(contentType, out var extension))
             return BadRequest("Unsupported video type");
+
+        if (_maxUploadSizeBytes is > 0 && Request.ContentLength > _maxUploadSizeBytes)
+            return StatusCode(StatusCodes.Status413PayloadTooLarge,
+                $"File exceeds maximum upload size of {_maxUploadSizeBytes} bytes");
 
         // Save to temp folder
         var filePath = Path.Combine(_tempVideoFolder, $"{Guid.NewGuid()}{extension}");
@@ -53,7 +62,7 @@ public class UploadController(
 
         // Process file
         var jobId = Guid.NewGuid();
-        var conversionJob = new VideoConversionJob(int.Parse(userId), filePath, _outputVideoFolder,
+        var conversionJob = new VideoConversionJob(userId, filePath, _outputVideoFolder,
             jobId);
 
         if (endTime is > 0 && endTime > startTime)

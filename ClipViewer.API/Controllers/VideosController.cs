@@ -12,7 +12,8 @@ namespace ClipViewer.API.Controllers;
 [ApiController]
 public class VideosController(
     IConfiguration configuration,
-    ApplicationDbContext context) : ControllerBase
+    ApplicationDbContext context,
+    ILogger<VideosController> logger) : ControllerBase
 {
     private readonly string _outputVideoFolder = configuration
                                                      .GetSection("UploadOptions")
@@ -124,7 +125,7 @@ public class VideosController(
         }
         catch (Exception e)
         {
-            Console.WriteLine("Unable to delete files");
+            logger.LogWarning(e, "Unable to delete files for video {VideoId}", videoId);
         }
 
         return true;
