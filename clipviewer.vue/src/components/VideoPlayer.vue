@@ -13,6 +13,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  placeholder: {
+    type: String,
+    default: null,
+  },
 })
 
 defineExpose({
@@ -74,17 +78,24 @@ function onCinemaModeToggle(event) {
 
 <template>
   <!-- Loading state -->
-  <div v-if="!videoLoaded" class="aspect-video bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-    <div class="text-center">
+  <div
+    v-if="!videoLoaded"
+    class="aspect-video bg-gray-100 dark:bg-gray-900 bg-cover bg-center flex items-center justify-center relative"
+    :style="placeholder ? { backgroundImage: `url(${placeholder})` } : undefined"
+  >
+    <div class="absolute inset-0" :class="placeholder ? 'bg-black/40' : ''"></div>
+    <div class="text-center relative">
       <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-      <p class="text-gray-600 dark:text-gray-400 text-sm">Loading video...</p>
+      <p class="text-sm" :class="placeholder ? 'text-gray-100' : 'text-gray-600 dark:text-gray-400'">
+        Loading video...
+      </p>
     </div>
   </div>
 
   <!-- Video player -->
   <media-controller v-show="videoLoaded">
-    <video v-if="!isHLS" :src="props.src" slot="media" ref="refVideo"></video>
-    <hls-video v-else :src="props.src" crossorigin slot="media" ref="refVideo"></hls-video>
+    <video v-if="!isHLS" :src="props.src" :poster="placeholder" slot="media" ref="refVideo"></video>
+    <hls-video v-else :src="props.src" :poster="placeholder" crossorigin slot="media" ref="refVideo"></hls-video>
     <div class="center" slot="centered-chrome">
       <media-seek-backward-button seekoffset="10"></media-seek-backward-button>
       <media-play-button></media-play-button>
