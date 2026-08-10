@@ -81,11 +81,6 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
 
           <Separator orientation="vertical" class="h-6 mx-1" />
 
-          <Button variant="ghost" size="icon" as-child title="View on GitHub">
-            <a href="https://github.com/DevRuto/ClipViewer" target="_blank" rel="noopener noreferrer">
-              <GithubIcon class="size-5" />
-            </a>
-          </Button>
           <ThemeCustomizer />
           <ThemeSwitcher />
         </div>
@@ -135,14 +130,6 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
                     </Button>
                   </SheetClose>
                 </template>
-
-                <Separator class="my-2" />
-                <Button variant="ghost" class="justify-start" as-child>
-                  <a href="https://github.com/DevRuto/ClipViewer" target="_blank" rel="noopener noreferrer">
-                    <GithubIcon class="size-4" />
-                    GitHub
-                  </a>
-                </Button>
               </div>
             </SheetContent>
           </Sheet>
@@ -150,5 +137,20 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
       </div>
     </nav>
     <RouterView class="flex-1" />
+
+    <footer class="border-t">
+      <div class="container mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
+        <p>&copy; {{ new Date().getFullYear() }} ClipViewer. Created by Ruto.</p>
+        <a
+          href="https://github.com/DevRuto/ClipViewer"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+        >
+          <GithubIcon class="size-4" />
+          GitHub
+        </a>
+      </div>
+    </footer>
   </div>
 </template>

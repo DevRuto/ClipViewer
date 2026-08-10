@@ -36,7 +36,7 @@ const handleLogin = async () => {
 }
 </script>
 <template>
-  <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+  <div class="flex items-center justify-center px-4">
     <Card class="w-full max-w-md">
       <CardHeader class="text-center">
         <CardTitle class="text-2xl">Sign in to ClipViewer</CardTitle>
