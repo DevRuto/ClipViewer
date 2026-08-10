@@ -1,5 +1,7 @@
 # ClipViewer
 
+[![Build & Test](https://github.com/DevRuto/ClipViewer/actions/workflows/build-test.yml/badge.svg)](https://github.com/DevRuto/ClipViewer/actions/workflows/build-test.yml)
+
 I wanted something like streamable/youtube where I upload my video clips and
 it would last as long as the server stays up.
 
