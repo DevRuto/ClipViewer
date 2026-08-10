@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, RouterLinkStub } from '@vue/test-utils'
 
 vi.mock('@/services/api', () => ({
   api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
@@ -32,7 +32,7 @@ const VideoInfoStub = {
   emits: ['update-video', 'delete-video', 'refresh-video', 'retry-video'],
   template: '<div class="video-info-stub" />',
 }
-const stubs = { VideoPlayer: VideoPlayerStub, VideoInfo: VideoInfoStub }
+const stubs = { VideoPlayer: VideoPlayerStub, VideoInfo: VideoInfoStub, RouterLink: RouterLinkStub }
 
 function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 0))
