@@ -80,15 +80,13 @@ function onCinemaModeToggle(event) {
   <!-- Loading state -->
   <div
     v-if="!videoLoaded"
-    class="aspect-video bg-gray-100 dark:bg-gray-900 bg-cover bg-center flex items-center justify-center relative"
+    class="aspect-video bg-muted bg-cover bg-center flex items-center justify-center relative"
     :style="placeholder ? { backgroundImage: `url(${placeholder})` } : undefined"
   >
     <div class="absolute inset-0" :class="placeholder ? 'bg-black/40' : ''"></div>
     <div class="text-center relative">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-      <p class="text-sm" :class="placeholder ? 'text-gray-100' : 'text-gray-600 dark:text-gray-400'">
-        Loading video...
-      </p>
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+      <p class="text-sm" :class="placeholder ? 'text-gray-100' : 'text-muted-foreground'">Loading video...</p>
     </div>
   </div>
 
@@ -126,6 +124,8 @@ media-controller {
   container-name: media-chrome;
   container-type: inline-size;
   width: 100%;
+  --media-primary-color: var(--primary);
+  --media-control-hover-background: var(--accent);
 }
 
 .center {

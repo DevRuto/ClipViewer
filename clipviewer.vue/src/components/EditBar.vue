@@ -1,6 +1,10 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { formatDuration, parseTimeToSeconds } from '@/composables/useDuration.js'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const props = defineProps({
   videoDuration: {
@@ -42,14 +46,12 @@ function onTimeInput() {
 function setStartTime() {
   if (props.videoPlayerRef) {
     startTime.value = formatDuration(props.videoPlayerRef.currentTime)
-    onTimeInput()
   }
 }
 
 function setEndTime() {
   if (props.videoPlayerRef) {
     endTime.value = formatDuration(props.videoPlayerRef.currentTime)
-    onTimeInput()
   }
 }
 
@@ -57,6 +59,11 @@ defineExpose({
   setStartTime,
   setEndTime
 })
+
+// The shadcn Input's v-model updates asynchronously (via VueUse's useVModel), so an @input
+// listener on the Input itself would read startTime/endTime before they've actually changed.
+// Watching the refs directly guarantees onTimeInput only runs once they hold the new value.
+watch([startTime, endTime], onTimeInput)
 
 onMounted(() => {
   endTime.value = formatDuration(props.videoDuration)
@@ -67,63 +74,35 @@ onMounted(() => {
 <template>
   <div class="space-y-4">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Start Time
-        </label>
+      <div class="space-y-2">
+        <Label>Start Time</Label>
         <div class="flex gap-2">
-          <input
-            v-model="startTime"
-            type="text"
-            placeholder="0:00"
-            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-            @input="onTimeInput"
-          />
-          <button
-            @click="setStartTime"
-            class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition duration-200"
-            title="Set to current time"
-          >
-            Set
-          </button>
+          <Input v-model="startTime" type="text" placeholder="0:00" />
+          <Button type="button" title="Set to current time" @click="setStartTime">Set</Button>
         </div>
       </div>
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          End Time
-        </label>
+      <div class="space-y-2">
+        <Label>End Time</Label>
         <div class="flex gap-2">
-          <input
-            v-model="endTime"
-            type="text"
-            placeholder="1:00"
-            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-            @input="onTimeInput"
-          />
-          <button
-            @click="setEndTime"
-            class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition duration-200"
-            title="Set to current time"
-          >
-            Set
-          </button>
+          <Input v-model="endTime" type="text" placeholder="1:00" />
+          <Button type="button" title="Set to current time" @click="setEndTime">Set</Button>
         </div>
       </div>
     </div>
 
-    <div class="text-sm text-gray-600 dark:text-gray-400">
+    <div class="text-sm text-muted-foreground">
       <p>Format: MM:SS or H:MM:SS</p>
       <p>Video duration: {{ formatDuration(videoDuration) }}</p>
-      <p v-if="startTime && endTime" :class="{ 'text-red-500': !timestampsValid }">
+      <p v-if="startTime && endTime" :class="{ 'text-destructive': !timestampsValid }">
         Clip duration: {{ formatDuration(parseTimeToSeconds(endTime) - parseTimeToSeconds(startTime)) }}
       </p>
     </div>
 
-    <div v-if="startTime && endTime && !timestampsValid" class="p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-600 rounded-md">
-      <p class="text-red-700 dark:text-red-400 text-sm">
+    <Alert v-if="startTime && endTime && !timestampsValid" variant="destructive">
+      <AlertDescription>
         Invalid timestamps. Make sure start time is before end time and within video duration.
-      </p>
-    </div>
+      </AlertDescription>
+    </Alert>
   </div>
 </template>

@@ -10,7 +10,15 @@ export default defineConfig([
     files: ['**/*.{vue,js,mjs,jsx}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  globalIgnores([
+    '**/dist/**',
+    '**/dist-ssr/**',
+    '**/coverage/**',
+    // Vendored shadcn-vue primitives (TypeScript source, copied verbatim from the
+    // shadcn-vue registry) - not linted as part of this JS codebase.
+    'src/components/ui/**',
+    'src/lib/utils.ts',
+  ]),
 
   {
     languageOptions: {

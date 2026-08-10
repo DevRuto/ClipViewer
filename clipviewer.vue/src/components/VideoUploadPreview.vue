@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import EditBar from './EditBar.vue'
 import VideoPlayer from './VideoPlayer.vue'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 const props = defineProps({
   videoUrl: {
@@ -42,41 +45,30 @@ function clearVideoPreview() {
 <template>
   <div class="mt-6">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-lg font-medium text-gray-800 dark:text-white">
+      <h3 class="text-lg font-medium">
         {{ isEditingMode ? 'Clip Editor' : 'Video Preview' }}
       </h3>
-      <button
-        @click="clearVideoPreview"
-        class="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-      >
+      <Button variant="link" size="sm" class="text-destructive px-0" @click="clearVideoPreview">
         Clear Preview
-      </button>
+      </Button>
     </div>
 
     <div class="relative rounded-lg overflow-hidden bg-black" :class="[isEditingMode ? 'max-w-7xl mx-auto' : '']">
       <VideoPlayer
         ref="videoPlayerRef"
         :src="props.videoUrl"
-        @loaded="onVideoLoaded"
         class="w-full"
         :class="[isEditingMode ? 'max-h-[70vh]' : 'max-h-96']"
+        @loaded="onVideoLoaded"
       />
     </div>
 
     <!-- Edit Bar with Toggle -->
     <div class="mt-4">
       <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center">
-          <input
-            type="checkbox"
-            :checked="isEditingMode"
-            @change="emit('toggle-edit-mode')"
-            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
-            id="editMode"
-          />
-          <label for="editMode" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-            Edit Mode
-          </label>
+        <div class="flex items-center gap-2">
+          <Switch id="editMode" :model-value="isEditingMode" @update:model-value="emit('toggle-edit-mode')" />
+          <Label for="editMode" class="cursor-pointer">Edit Mode</Label>
         </div>
       </div>
 
@@ -89,7 +81,7 @@ function clearVideoPreview() {
       />
     </div>
 
-    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+    <p class="mt-2 text-sm text-muted-foreground">
       {{ props.file?.name }} ({{ (props.file?.size / 1024 / 1024).toFixed(2) }} MB)
     </p>
   </div>

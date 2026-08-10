@@ -3,6 +3,9 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import ClipList from '@/components/ClipList.vue'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Plus } from '@lucide/vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,24 +46,25 @@ watch(
 <template>
   <div class="min-h-screen">
     <div class="container mx-auto px-4 py-8">
-      <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">
+      <h1 class="text-3xl font-bold mb-8">
         {{ title }}
       </h1>
 
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">Video Library</h2>
-          <button
+      <Card class="mb-6">
+        <CardHeader class="flex-row items-center justify-between">
+          <CardTitle class="text-xl">Video Library</CardTitle>
+          <Button
             v-if="isAuthenticated && user.username.toLowerCase() === username?.toLowerCase()"
             @click="router.push('/upload')"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 cursor-pointer"
           >
+            <Plus class="size-4" />
             Upload New Clip
-          </button>
-        </div>
-
-        <ClipList :username="username" />
-      </div>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <ClipList :username="username" />
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>

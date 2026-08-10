@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, DOMWrapper } from '@vue/test-utils'
 import { reactive } from 'vue'
 
 const mockUser = vi.hoisted(() => ({ value: null }))
@@ -104,8 +104,8 @@ describe('VideoInfo', () => {
     videoPlayer.currentTime = 42
     await wrapper.vm.$nextTick()
 
-    const timestampCheckbox = wrapper.find('input[type="checkbox"]')
-    await timestampCheckbox.setValue(true)
+    const timestampSwitch = wrapper.find('[role="switch"]')
+    await timestampSwitch.trigger('click')
 
     const copyButton = findByText(wrapper, 'button', /Copy Link/)
     await copyButton.trigger('click')
@@ -116,22 +116,29 @@ describe('VideoInfo', () => {
 
   it('opens a confirmation modal before deleting and only emits delete-video on confirm', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    // AlertDialog content is teleported to document.body, outside the mounted wrapper's own
+    // element tree, so it has to be queried via a DOMWrapper around document.body instead of
+    // `wrapper.find()`/`wrapper.text()`.
+    const wrapper = mount(VideoInfo, {
+      props: { video: baseVideo, videoPlayer: null },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
     await wrapper.find('.mb-4.space-y-3 button').trigger('click') // open edit mode
     const deleteButton = findByText(wrapper, 'button', 'Delete Video')
     await deleteButton.trigger('click')
 
-    expect(wrapper.text()).toContain('Are you sure you want to delete this video?')
+    expect(body.text()).toContain('Are you sure you want to delete this video?')
     expect(wrapper.emitted('delete-video')).toBeFalsy()
 
-    const cancelButton = findByText(wrapper, 'button', 'Cancel')
+    const cancelButton = findByText(body, 'button', 'Cancel')
     await cancelButton.trigger('click')
     expect(wrapper.emitted('delete-video')).toBeFalsy()
-    expect(wrapper.text()).not.toContain('Are you sure you want to delete this video?')
+    expect(body.text()).not.toContain('Are you sure you want to delete this video?')
 
     await deleteButton.trigger('click')
-    const confirmButton = findByText(wrapper, 'button', 'Delete')
+    const confirmButton = findByText(body, 'button', 'Delete')
     await confirmButton.trigger('click')
 
     expect(wrapper.emitted('delete-video')).toBeTruthy()
@@ -161,8 +168,8 @@ describe('VideoInfo', () => {
     const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
 
     await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const unlistedCheckbox = wrapper.find('.mb-4.space-y-3 input[type="checkbox"]')
-    await unlistedCheckbox.setValue(true)
+    const unlistedSwitch = wrapper.find('.mb-4.space-y-3 [role="switch"]')
+    await unlistedSwitch.trigger('click')
 
     const lastEmit = wrapper.emitted('update-video').at(-1)[0]
     expect(lastEmit.unlisted).toBe(true)

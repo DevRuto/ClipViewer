@@ -4,6 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import VideoInfo from '@/components/VideoInfo.vue'
+import { Card } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { AlertCircle, VideoOff } from '@lucide/vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -165,22 +170,18 @@ async function refreshVideo() {
 
 <template>
   <div :class="['mx-auto px-4 py-8 container']">
-    <div v-if="loading" class="text-center py-12">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      <p class="mt-4 text-gray-600 dark:text-gray-400">Loading video...</p>
+    <div v-if="loading" class="max-w-5xl mx-auto">
+      <Skeleton class="aspect-video w-full rounded-lg mb-4" />
+      <Skeleton class="h-8 w-2/3 mb-2" />
+      <Skeleton class="h-4 w-1/3" />
+      <p class="sr-only">Loading video...</p>
     </div>
 
-    <div
-      v-else-if="video"
-      :class="['mx-auto', { 'max-w-5xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]"
-    >
-      <div
-        v-if="error"
-        class="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-600 rounded-md"
-      >
-        <p class="text-red-700 dark:text-red-400 text-sm">{{ error }}</p>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+    <div v-else-if="video" :class="['mx-auto', { 'max-w-5xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]">
+      <Alert v-if="error" variant="destructive" class="mb-4">
+        <AlertDescription>{{ error }}</AlertDescription>
+      </Alert>
+      <Card class="overflow-hidden py-0 gap-0">
         <div class="aspect-video">
           <VideoPlayer
             ref="videoPlayer"
@@ -198,53 +199,21 @@ async function refreshVideo() {
           @refresh-video="refreshVideo"
           @retry-video="retryVideo"
         />
-      </div>
+      </Card>
     </div>
 
     <div v-else-if="error" class="text-center py-12">
-      <svg
-        class="w-16 h-16 text-red-400 dark:text-red-500 mx-auto mb-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        ></path>
-      </svg>
-      <p class="text-gray-500 dark:text-gray-400 text-lg mb-2">Unable to load video</p>
-      <p class="text-gray-400 dark:text-gray-500">{{ error }}</p>
-      <button
-        @click="refreshVideo"
-        class="mt-4 inline-block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-      >
-        Try again
-      </button>
+      <AlertCircle class="size-16 text-destructive mx-auto mb-4" />
+      <p class="text-muted-foreground text-lg mb-2">Unable to load video</p>
+      <p class="text-muted-foreground/70">{{ error }}</p>
+      <Button variant="link" class="mt-4" @click="refreshVideo">Try again</Button>
     </div>
 
     <div v-else class="text-center py-12">
-      <svg
-        class="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-        ></path>
-      </svg>
-      <p class="text-gray-500 dark:text-gray-400 text-lg mb-2">Video not found</p>
-      <p class="text-gray-400 dark:text-gray-500">The video you're looking for doesn't exist.</p>
-      <RouterLink
-        to="/browse"
-        class="mt-4 inline-block text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-      >
+      <VideoOff class="size-16 text-muted-foreground mx-auto mb-4" />
+      <p class="text-muted-foreground text-lg mb-2">Video not found</p>
+      <p class="text-muted-foreground/70">The video you're looking for doesn't exist.</p>
+      <RouterLink to="/browse" class="mt-4 inline-block text-primary hover:underline">
         ← Back to clips
       </RouterLink>
     </div>

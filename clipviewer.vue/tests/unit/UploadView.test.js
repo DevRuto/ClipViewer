@@ -29,6 +29,30 @@ function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+// shallowMount auto-stubs every child component (including the shadcn/ui primitives UploadView
+// now renders through), and by default a stub does not render its slot content - so the real
+// <input>/<button>/etc. these wrap would be invisible to wrapper.find(). Un-stub the presentational
+// primitives so their real markup renders, while leaving VideoUploadPreview shallow-stubbed as before.
+function mountUploadView() {
+  return shallowMount(UploadView, {
+    global: {
+      stubs: {
+        Card: false,
+        CardContent: false,
+        Input: false,
+        Label: false,
+        Button: false,
+        Alert: false,
+        AlertDescription: false,
+        Progress: false,
+        // Button/Label render through reka-ui's polymorphic `Primitive` wrapper internally -
+        // shallowMount stubs it too unless explicitly un-stubbed, even though Button/Label above are.
+        Primitive: false,
+      },
+    },
+  })
+}
+
 describe('UploadView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -37,7 +61,7 @@ describe('UploadView', () => {
   })
 
   it('accepts a valid video file and defaults the name from the filename', async () => {
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile('my-video.mp4'))
 
     expect(wrapper.find('#videoName').element.value).toBe('my-video')
@@ -45,7 +69,7 @@ describe('UploadView', () => {
   })
 
   it('rejects a non-video file with an error message', async () => {
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, new File(['x'], 'doc.pdf', { type: 'application/pdf' }))
 
     expect(wrapper.text()).toContain('Please select a valid video file')
@@ -53,7 +77,7 @@ describe('UploadView', () => {
   })
 
   it('shows an error when uploading without a video name', async () => {
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
     await wrapper.find('#videoName').setValue('')
     await wrapper.find('button.flex-1').trigger('click')
@@ -64,7 +88,7 @@ describe('UploadView', () => {
 
   it('uploads the video and redirects to the new clip on success', async () => {
     api.post.mockResolvedValueOnce({ status: 202, data: { videoId: 'xyz789' } })
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile('my-video.mp4'))
     await wrapper.find('button.flex-1').trigger('click')
     await flushPromises()
@@ -79,7 +103,7 @@ describe('UploadView', () => {
 
   it('surfaces the server error message when the upload fails', async () => {
     api.post.mockRejectedValueOnce({ response: { data: { message: 'Server exploded' } } })
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
     await wrapper.find('button.flex-1').trigger('click')
     await flushPromises()
@@ -88,7 +112,7 @@ describe('UploadView', () => {
   })
 
   it('guards against an incomplete timestamp range from the editor', async () => {
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
     await wrapper.findComponent(VideoUploadPreview).vm.$emit('toggle-edit-mode')
     // Simulate a malformed/partial payload (endTime missing) reaching the parent.
@@ -101,7 +125,7 @@ describe('UploadView', () => {
 
   it('includes trim timestamps in the upload URL when a partial clip range is set', async () => {
     api.post.mockResolvedValueOnce({ status: 202, data: { videoId: 'clip1' } })
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
     await wrapper.findComponent(VideoUploadPreview).vm.$emit('toggle-edit-mode')
     await wrapper
@@ -116,7 +140,7 @@ describe('UploadView', () => {
   })
 
   it('clears the preview and revokes the object URL', async () => {
-    const wrapper = shallowMount(UploadView)
+    const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
     await wrapper.findComponent(VideoUploadPreview).vm.$emit('clear-preview')
 
