@@ -184,3 +184,103 @@ describe('VideoView', () => {
     expect(api.get).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('VideoView player resize', () => {
+  const RESIZE_HANDLE_TITLE = 'Drag to resize the player (double-click to reset)'
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  function findResizableContainer(wrapper) {
+    // The resizable width lives on containerRef (wraps Alert + Card), not the inner .aspect-video
+    // player box, so the whole card - not just the video - grows/shrinks together. Both it and the
+    // page's outermost wrapper carry "mx-auto", so take the second (innermost) match.
+    return wrapper.findAll('.mx-auto')[1]
+  }
+
+  it('applies a persisted player width from localStorage', async () => {
+    localStorage.setItem('clipviewer:player-width', '555')
+    api.get.mockResolvedValueOnce({ status: 200, data: processedVideo })
+    const wrapper = mount(VideoView, { global: { stubs } })
+    await flushPromises()
+
+    expect(findResizableContainer(wrapper).attributes('style')).toContain('width: 555px')
+  })
+
+  it('resizes on drag, clamps to the available browser width, and persists on release', async () => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 600,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: 600,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    })
+    // maxWidth = innerWidth - 32, so this caps drag growth at 618px.
+    Object.defineProperty(window, 'innerWidth', { value: 650, configurable: true })
+    api.get.mockResolvedValueOnce({ status: 200, data: processedVideo })
+    const wrapper = mount(VideoView, { global: { stubs } })
+    await flushPromises()
+
+    // vue-test-utils' trigger() can't set MouseEvent's getter-only `button`/`clientX` on a
+    // PointerEvent, so dispatch a real PointerEvent (which accepts them via its constructor) directly.
+    wrapper
+      .find(`[title="${RESIZE_HANDLE_TITLE}"]`)
+      .element.dispatchEvent(new PointerEvent('pointerdown', { button: 0, clientX: 300, bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    // +200px from the (mocked) 600px drag start would reach 800px, exceeding the 618px max, so it clamps.
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 500 }))
+    await wrapper.vm.$nextTick()
+    expect(findResizableContainer(wrapper).attributes('style')).toContain('width: 618px')
+
+    window.dispatchEvent(new PointerEvent('pointerup', { clientX: 500 }))
+    await wrapper.vm.$nextTick()
+    expect(localStorage.getItem('clipviewer:player-width')).toBe('618')
+  })
+
+  it('clamps drag shrinking to the minimum player width', async () => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 600,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: 600,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    })
+    api.get.mockResolvedValueOnce({ status: 200, data: processedVideo })
+    const wrapper = mount(VideoView, { global: { stubs } })
+    await flushPromises()
+
+    wrapper
+      .find(`[title="${RESIZE_HANDLE_TITLE}"]`)
+      .element.dispatchEvent(new PointerEvent('pointerdown', { button: 0, clientX: 300, bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    // Dragging 1000px left from a 600px start would go well below the 320px floor.
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: -700 }))
+    await wrapper.vm.$nextTick()
+    expect(findResizableContainer(wrapper).attributes('style')).toContain('width: 320px')
+  })
+
+  it('resets to a fluid 100% width and clears localStorage on double-click', async () => {
+    localStorage.setItem('clipviewer:player-width', '555')
+    api.get.mockResolvedValueOnce({ status: 200, data: processedVideo })
+    const wrapper = mount(VideoView, { global: { stubs } })
+    await flushPromises()
+
+    await wrapper.find(`[title="${RESIZE_HANDLE_TITLE}"]`).trigger('dblclick')
+
+    // No custom width left - falls back to the normal max-w-5xl/7xl centered column.
+    expect(findResizableContainer(wrapper).attributes('style')).toBeUndefined()
+    expect(findResizableContainer(wrapper).classes()).toContain('max-w-5xl')
+    expect(localStorage.getItem('clipviewer:player-width')).toBeNull()
+  })
+})

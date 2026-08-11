@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, VideoOff } from '@lucide/vue'
+import { AlertCircle, VideoOff, GripVertical } from '@lucide/vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +20,63 @@ const pollingInterval = ref(null)
 const error = ref('')
 
 const videoSource = ref(null)
+
+const PLAYER_WIDTH_STORAGE_KEY = 'clipviewer:player-width'
+const MIN_PLAYER_WIDTH = 320
+// Matches the px-4 (1rem each side) horizontal padding on the page's outer wrapper, which stays
+// in place even when the max-width "container" class is dropped for a custom-width player.
+const PAGE_EDGE_MARGIN = 32
+
+// Wraps the Alert + Card. While playerWidth is set, this element's own max-w-5xl/7xl (and the
+// page's outer max-width) are dropped so it can size up to the browser edge instead of just the
+// normal centered column - see the container/containerRef bindings in the template.
+const containerRef = ref(null)
+const playerWidth = ref(null)
+const isResizingPlayer = ref(false)
+
+function readStoredPlayerWidth() {
+  const raw = Number(localStorage.getItem(PLAYER_WIDTH_STORAGE_KEY))
+  return Number.isFinite(raw) && raw > 0 ? raw : null
+}
+
+playerWidth.value = readStoredPlayerWidth()
+
+function onPlayerResizeStart(event) {
+  if (event.button !== 0 || !containerRef.value) return
+  event.preventDefault()
+
+  const startX = event.clientX
+  const startWidth = containerRef.value.getBoundingClientRect().width
+  const maxWidth = window.innerWidth - PAGE_EDGE_MARGIN
+
+  isResizingPlayer.value = true
+  document.body.style.cursor = 'ew-resize'
+  document.body.style.userSelect = 'none'
+
+  function onMove(moveEvent) {
+    const next = startWidth + (moveEvent.clientX - startX)
+    playerWidth.value = Math.min(maxWidth, Math.max(MIN_PLAYER_WIDTH, next))
+  }
+
+  function onUp() {
+    isResizingPlayer.value = false
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    if (playerWidth.value) {
+      localStorage.setItem(PLAYER_WIDTH_STORAGE_KEY, String(Math.round(playerWidth.value)))
+    }
+  }
+
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+}
+
+function resetPlayerWidth() {
+  playerWidth.value = null
+  localStorage.removeItem(PLAYER_WIDTH_STORAGE_KEY)
+}
 
 async function fetchVideo(isPolling = false) {
   try {
@@ -169,7 +226,7 @@ async function refreshVideo() {
 </script>
 
 <template>
-  <div :class="['mx-auto px-4 py-8 container']">
+  <div :class="['mx-auto px-4 py-8', { container: !playerWidth }]">
     <div v-if="loading" class="max-w-5xl mx-auto">
       <Skeleton class="aspect-video w-full rounded-lg mb-4" />
       <Skeleton class="h-8 w-2/3 mb-2" />
@@ -177,12 +234,18 @@ async function refreshVideo() {
       <p class="sr-only">Loading video...</p>
     </div>
 
-    <div v-else-if="video" :class="['mx-auto', { 'max-w-5xl': !isCinemaMode, 'max-w-7xl': isCinemaMode }]">
+    <div
+      v-else-if="video"
+      ref="containerRef"
+      class="mx-auto"
+      :class="!playerWidth ? (isCinemaMode ? 'max-w-7xl' : 'max-w-5xl') : ''"
+      :style="playerWidth ? { width: `${playerWidth}px`, maxWidth: '100%' } : undefined"
+    >
       <Alert v-if="error" variant="destructive" class="mb-4">
         <AlertDescription>{{ error }}</AlertDescription>
       </Alert>
       <Card class="overflow-hidden py-0 gap-0">
-        <div class="aspect-video">
+        <div class="relative aspect-video w-full">
           <VideoPlayer
             ref="videoPlayer"
             :src="videoSource"
@@ -190,6 +253,19 @@ async function refreshVideo() {
             @loaded="onVideoLoaded"
             @toggleCinemaMode="onToggleCinemaMode"
           />
+          <div
+            class="group absolute top-0 right-0 bottom-20 flex w-4 items-center justify-center cursor-ew-resize touch-none transition-colors hover:bg-white/10"
+            title="Drag to resize the player (double-click to reset)"
+            @pointerdown="onPlayerResizeStart"
+            @dblclick="resetPlayerWidth"
+          >
+            <div
+              class="flex h-12 w-5 items-center justify-center rounded-full bg-black/50 text-white/70 opacity-60 transition-opacity group-hover:opacity-100"
+              :class="{ 'opacity-100! bg-black/70!': isResizingPlayer }"
+            >
+              <GripVertical class="size-3.5" />
+            </div>
+          </div>
         </div>
         <VideoInfo
           :video="video"
