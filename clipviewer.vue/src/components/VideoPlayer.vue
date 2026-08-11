@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, watch } from 'vue'
 import { useFullscreen } from '@vueuse/core'
 import 'hls-video-element'
 import { Play, Pause, Maximize, Minimize, Loader2, SkipBack, SkipForward } from '@lucide/vue'
@@ -10,7 +10,6 @@ import VideoVolumeControl from './video-player/VideoVolumeControl.vue'
 import PlaybackRateMenu from './video-player/PlaybackRateMenu.vue'
 import { playerButtonClass } from './video-player/playerButtonClass.js'
 
-const CINEMA_MODE_STORAGE_KEY = 'cinema-mode'
 const SEEK_STEP_SMALL = 5
 const SEEK_STEP_LARGE = 10
 const VOLUME_STEP = 0.05
@@ -28,13 +27,12 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['loaded', 'toggleCinemaMode'])
+const emit = defineEmits(['loaded'])
 
 const playerRoot = ref(null)
 const refVideo = ref(null)
 const videoLoaded = ref(false)
 const controlsVisible = ref(true)
-const isCinemaMode = ref(localStorage.getItem(CINEMA_MODE_STORAGE_KEY) === 'true')
 
 const isHLS = computed(() => props.src.toLowerCase().endsWith('.m3u8'))
 
@@ -101,23 +99,11 @@ watch(isPlaying, (playing) => {
   }
 })
 
-onMounted(() => {
-  // Tell the parent the persisted cinema-mode state right away, since it otherwise only
-  // learns about it from a user-driven toggle.
-  emit('toggleCinemaMode', isCinemaMode.value)
-})
-
 onBeforeUnmount(() => clearTimeout(hideTimer))
 
 function onVideoClick() {
   togglePlay()
   showControls()
-}
-
-function toggleCinemaMode() {
-  isCinemaMode.value = !isCinemaMode.value
-  localStorage.setItem(CINEMA_MODE_STORAGE_KEY, String(isCinemaMode.value))
-  emit('toggleCinemaMode', isCinemaMode.value)
 }
 
 function onMouseLeaveRoot() {
@@ -143,7 +129,6 @@ function onKeydown(event) {
   else if (key === 'arrowdown') setVolume(Math.max(0, (muted.value ? 0 : volume.value) - VOLUME_STEP))
   else if (key === 'm') toggleMute()
   else if (key === 'f') toggleFullscreen()
-  else if (key === 'c') toggleCinemaMode()
   else if (key === 'home') seekTo(0)
   else if (key === 'end') seekTo(duration.value)
   else if (/^[0-9]$/.test(event.key)) seekTo((Number(event.key) / 10) * duration.value)
@@ -275,22 +260,6 @@ function onKeydown(event) {
           <div class="flex-1"></div>
 
           <PlaybackRateMenu :rate="playbackRate" @update:rate="setPlaybackRate" />
-
-          <button
-            type="button"
-            :class="[playerButtonClass, 'hidden sm:inline-flex']"
-            :title="isCinemaMode ? 'Exit cinema mode' : 'Enter cinema mode'"
-            @click="toggleCinemaMode"
-          >
-            <svg v-if="isCinemaMode" viewBox="0 0 24 24" class="size-[18px]" fill="currentColor" aria-hidden="true">
-              <path d="M2 4v16h20V4H2zm18 14H4V6h16v12z" />
-              <path d="M6 8h12v8H6z" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" class="size-[18px]" fill="currentColor" aria-hidden="true">
-              <path d="M3 5v14h18V5H3zm16 12H5V7h14v10z" />
-              <path d="M7 9h10v6H7z" />
-            </svg>
-          </button>
 
           <button
             type="button"

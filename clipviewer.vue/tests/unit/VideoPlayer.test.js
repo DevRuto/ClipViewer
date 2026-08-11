@@ -46,20 +46,6 @@ describe('VideoPlayer', () => {
     expect(wrapper.vm.currentTime).toBe(42)
   })
 
-  it('emits toggleCinemaMode with the persisted state on mount, and toggles it on click', async () => {
-    localStorage.setItem('cinema-mode', 'true')
-    const wrapper = mount(VideoPlayer, { props: { src: '/files/source/clip.mp4' } })
-
-    expect(wrapper.emitted('toggleCinemaMode')[0]).toEqual([true])
-
-    markLoaded(wrapper)
-    await wrapper.vm.$nextTick()
-
-    await wrapper.find('button[title="Exit cinema mode"]').trigger('click')
-    expect(wrapper.emitted('toggleCinemaMode')[1]).toEqual([false])
-    expect(localStorage.getItem('cinema-mode')).toBe('false')
-  })
-
   it('toggles play/pause when the video is clicked', async () => {
     const wrapper = mount(VideoPlayer, { props: { src: '/files/source/clip.mp4' } })
     markLoaded(wrapper)

@@ -15,7 +15,6 @@ const router = useRouter()
 const video = ref(null)
 const loading = ref(true)
 const videoPlayer = ref(null)
-const isCinemaMode = ref(false)
 const pollingInterval = ref(null)
 const error = ref('')
 
@@ -214,10 +213,6 @@ async function deleteVideo() {
   }
 }
 
-function onToggleCinemaMode(cinemaModeState) {
-  isCinemaMode.value = cinemaModeState
-}
-
 async function refreshVideo() {
   loading.value = true
   await fetchVideo()
@@ -238,7 +233,7 @@ async function refreshVideo() {
       v-else-if="video"
       ref="containerRef"
       class="mx-auto"
-      :class="!playerWidth ? (isCinemaMode ? 'max-w-7xl' : 'max-w-5xl') : ''"
+      :class="!playerWidth ? 'max-w-5xl' : ''"
       :style="playerWidth ? { width: `${playerWidth}px`, maxWidth: '100%' } : undefined"
     >
       <Alert v-if="error" variant="destructive" class="mb-4">
@@ -251,7 +246,6 @@ async function refreshVideo() {
             :src="videoSource"
             :placeholder="video.thumbnail"
             @loaded="onVideoLoaded"
-            @toggleCinemaMode="onToggleCinemaMode"
           />
           <div
             class="group absolute top-0 right-0 bottom-20 flex w-4 items-center justify-center cursor-ew-resize touch-none transition-colors hover:bg-white/10"
