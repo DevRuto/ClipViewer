@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, onUnmounted, watch } from 'vue'
+import { onMounted, ref, onUnmounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import VideoPlayer from '@/components/VideoPlayer.vue'
@@ -33,6 +33,19 @@ const containerRef = ref(null)
 const playerWidth = ref(null)
 const isResizingPlayer = ref(false)
 
+// Resizing is a desktop-only affordance - matches the `md` breakpoint used for the mobile nav
+// in App.vue. On mobile the handle is hidden and any previously-saved desktop width is ignored
+// so the player always falls back to the normal responsive layout.
+const MOBILE_MEDIA_QUERY = '(max-width: 767px)'
+const isMobile = ref(false)
+let mobileMediaQuery = null
+
+function updateIsMobile(event) {
+  isMobile.value = event.matches
+}
+
+const effectivePlayerWidth = computed(() => (isMobile.value ? null : playerWidth.value))
+
 function readStoredPlayerWidth() {
   const raw = Number(localStorage.getItem(PLAYER_WIDTH_STORAGE_KEY))
   return Number.isFinite(raw) && raw > 0 ? raw : null
@@ -41,7 +54,7 @@ function readStoredPlayerWidth() {
 playerWidth.value = readStoredPlayerWidth()
 
 function onPlayerResizeStart(event) {
-  if (event.button !== 0 || !containerRef.value) return
+  if (event.button !== 0 || !containerRef.value || isMobile.value) return
   event.preventDefault()
 
   const startX = event.clientX
@@ -138,6 +151,13 @@ async function loadVideo() {
   loading.value = false
 }
 
+onMounted(() => {
+  if (typeof window.matchMedia !== 'function') return
+  mobileMediaQuery = window.matchMedia(MOBILE_MEDIA_QUERY)
+  isMobile.value = mobileMediaQuery.matches
+  mobileMediaQuery.addEventListener('change', updateIsMobile)
+})
+
 onMounted(loadVideo)
 
 // Vue Router reuses this component instance when navigating between two /clips/:videoId routes,
@@ -154,6 +174,7 @@ onUnmounted(() => {
     clearInterval(pollingInterval.value)
     pollingInterval.value = null
   }
+  mobileMediaQuery?.removeEventListener('change', updateIsMobile)
 })
 
 function onVideoLoaded() {
@@ -221,7 +242,7 @@ async function refreshVideo() {
 </script>
 
 <template>
-  <div :class="['mx-auto px-4 py-8', { container: !playerWidth }]">
+  <div :class="['mx-auto px-4 py-8', { container: !effectivePlayerWidth }]">
     <div v-if="loading" class="max-w-5xl mx-auto">
       <Skeleton class="aspect-video w-full rounded-lg mb-4" />
       <Skeleton class="h-8 w-2/3 mb-2" />
@@ -233,8 +254,8 @@ async function refreshVideo() {
       v-else-if="video"
       ref="containerRef"
       class="mx-auto"
-      :class="!playerWidth ? 'max-w-5xl' : ''"
-      :style="playerWidth ? { width: `${playerWidth}px`, maxWidth: '100%' } : undefined"
+      :class="!effectivePlayerWidth ? 'max-w-5xl' : ''"
+      :style="effectivePlayerWidth ? { width: `${effectivePlayerWidth}px`, maxWidth: '100%' } : undefined"
     >
       <Alert v-if="error" variant="destructive" class="mb-4">
         <AlertDescription>{{ error }}</AlertDescription>
@@ -248,6 +269,7 @@ async function refreshVideo() {
             @loaded="onVideoLoaded"
           />
           <div
+            v-if="!isMobile"
             class="group absolute top-0 right-0 bottom-20 flex w-4 items-center justify-center cursor-ew-resize touch-none transition-colors hover:bg-white/10"
             title="Drag to resize the player (double-click to reset)"
             @pointerdown="onPlayerResizeStart"
