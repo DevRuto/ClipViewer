@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, onUnmounted, watch } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
@@ -23,7 +23,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { Pencil, Trash2, Loader2, AlertTriangle, CheckCircle2, RefreshCw, Link as LinkIcon, Download } from '@lucide/vue'
+import {
+  Pencil,
+  Trash2,
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw,
+  Link as LinkIcon,
+  Check,
+  Download,
+  Calendar,
+  Clock,
+  EyeOff,
+} from '@lucide/vue'
 
 // Debounce utility function
 const debounceTimeoutIds = []
@@ -36,8 +49,11 @@ function debounce(fn, delay) {
   }
 }
 
+let copiedTimeoutId = null
+
 onUnmounted(() => {
   debounceTimeoutIds.forEach(clearTimeout)
+  clearTimeout(copiedTimeoutId)
 })
 
 const props = defineProps(['video', 'videoPlayer'])
@@ -45,6 +61,7 @@ const emit = defineEmits(['update-video', 'delete-video', 'refresh-video', 'retr
 
 const includeTimestamp = ref(false)
 const currentTime = ref(0)
+const justCopied = ref(false)
 
 const { user } = useAuth()
 const { stringToColor, getContrastColor } = useAuthorColor()
@@ -76,9 +93,11 @@ const processingProgress = computed(() => {
 
 const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
+const savedName = ref(props.video.name)
 const description = ref(props.video.description || '')
 const isEditing = ref(false)
 const wasProcessing = ref(!props.video.processed)
+const titleInputRef = ref(null)
 
 // Computed property to render description as markdown
 const renderedDescription = computed(() => {
@@ -92,9 +111,12 @@ watch(unlisted, (newValue) => {
   emit('update-video', { ...props.video, unlisted: newValue })
 })
 
-// Debounced name watcher
+// Debounced name watcher - blank/whitespace-only titles are never autosaved
 const debouncedNameUpdate = debounce((newValue) => {
-  emit('update-video', { ...props.video, name: newValue })
+  const trimmed = newValue.trim()
+  if (!trimmed) return
+  savedName.value = trimmed
+  emit('update-video', { ...props.video, name: trimmed })
 }, 500)
 
 watch(name, debouncedNameUpdate)
@@ -119,16 +141,48 @@ watch(
   { immediate: true }
 )
 
+// Focus (and select) the title input as soon as edit mode opens
+watch(
+  isEditing,
+  (editing) => {
+    if (!editing) return
+    nextTick(() => {
+      titleInputRef.value?.$el?.focus()
+      titleInputRef.value?.$el?.select()
+    })
+  },
+)
+
 function toggleEdit() {
   isEditing.value = !isEditing.value
 }
 
-function handleEnterKey() {
+function handleEnterKey(event) {
+  event.target.blur()
   isEditing.value = false
 }
 
-function copyLink() {
-  let url = new URL(window.location.href)
+function handleEscapeKey(event) {
+  // Unlike blur/Enter, Escape discards whatever hasn't been saved yet
+  name.value = savedName.value
+  event.target.blur()
+  isEditing.value = false
+}
+
+// Deliberately does not close edit mode - the edit panel also holds the unlisted switch and
+// the delete confirmation dialog, and that dialog moves focus outside the title input (into a
+// teleported AlertDialogContent) as soon as it opens, which would otherwise blur the input and
+// collapse the whole panel (dialog included) right as it's opening. Closing edit mode is left to
+// the pencil toggle, Enter, or Escape.
+function onTitleBlur() {
+  // Revert to the last successfully saved title rather than leaving the video nameless
+  if (!name.value.trim()) {
+    name.value = savedName.value
+  }
+}
+
+async function copyLink() {
+  const url = new URL(window.location.href)
 
   if (includeTimestamp.value) {
     url.searchParams.set('t', currentTime.value)
@@ -136,7 +190,16 @@ function copyLink() {
     url.searchParams.delete('t')
   }
 
-  navigator.clipboard.writeText(url.toString())
+  try {
+    await navigator.clipboard.writeText(url.toString())
+    justCopied.value = true
+    clearTimeout(copiedTimeoutId)
+    copiedTimeoutId = setTimeout(() => {
+      justCopied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy link:', err)
+  }
 }
 
 function confirmDelete() {
@@ -180,11 +243,12 @@ watch(
         <Input
           v-if="isEditing"
           v-model="name"
-          ref="titleInput"
+          ref="titleInputRef"
           class="flex-1 min-w-0 text-2xl font-bold h-auto py-2"
           placeholder="Video title"
-          @blur="isEditing = false"
+          @blur="onTitleBlur"
           @keydown.enter="handleEnterKey"
+          @keydown.esc="handleEscapeKey"
         />
         <h1
           v-else
@@ -193,15 +257,24 @@ watch(
         >
           {{ name }}
         </h1>
+
+        <!-- Persistent unlisted indicator, shown outside of edit mode where the switch already covers it -->
+        <span
+          v-if="!isEditing && unlisted"
+          class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+        >
+          <EyeOff class="size-3" />
+          Unlisted
+        </span>
       </div>
 
       <!-- Unlisted switch and Delete button - only show when editing -->
       <div v-if="isEditing" class="flex items-center justify-between">
         <!-- Public/Unlisted toggle switch -->
-        <label class="flex items-center gap-3 text-sm text-muted-foreground cursor-pointer select-none">
-          <span class="text-sm font-medium">Public</span>
+        <label class="flex items-center gap-3 text-sm cursor-pointer select-none">
+          <span :class="unlisted ? 'text-muted-foreground' : 'font-medium text-foreground'">Public</span>
           <Switch v-model="unlisted" />
-          <span class="text-sm font-medium">Unlisted</span>
+          <span :class="unlisted ? 'font-medium text-foreground' : 'text-muted-foreground'">Unlisted</span>
         </label>
 
         <!-- Delete button -->
@@ -216,7 +289,7 @@ watch(
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Video</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete this video? This action cannot be undone.
+                Are you sure you want to delete "{{ video.name }}"? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -258,7 +331,7 @@ watch(
 
     <!-- Processed success indicator with refresh button -->
     <Alert
-      v-else-if="(isCompleted || video.processed) && wasProcessing"
+      v-else-if="isCompleted && wasProcessing"
       class="mb-4 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
     >
       <CheckCircle2 class="size-5 text-green-600" />
@@ -271,41 +344,44 @@ watch(
       </AlertDescription>
     </Alert>
 
-    <!-- Description section (owner view; non-owners get title+description below) -->
-    <div v-if="ownsVideo" class="mb-4">
-      <div v-if="isEditing" class="mt-3">
-        <Textarea v-model="description" rows="3" placeholder="Add a description..." class="resize-none" />
-      </div>
-      <div v-else-if="description" class="mt-3">
-        <div class="text-muted-foreground prose prose-sm max-w-none dark:prose-invert" v-html="renderedDescription"></div>
-      </div>
+    <!-- Non-owner title (owner's title is rendered above, alongside edit controls) -->
+    <h1
+      v-if="!ownsVideo"
+      class="flex-1 min-w-0 text-2xl font-bold break-words line-clamp-2 sm:line-clamp-3"
+    >
+      {{ name }}
+    </h1>
+
+    <!-- Description: editable textarea for the owner, rendered markdown otherwise -->
+    <div v-if="isEditing" class="mb-4 mt-3">
+      <Textarea v-model="description" rows="3" placeholder="Add a description..." class="resize-none" />
+    </div>
+    <div v-else-if="description" class="mb-4 mt-3">
+      <div class="text-muted-foreground prose prose-sm max-w-none dark:prose-invert" v-html="renderedDescription"></div>
     </div>
 
-    <!-- Non-owner title and description -->
-    <div v-if="!ownsVideo">
-      <h1 class="flex-1 min-w-0 text-2xl font-bold break-words line-clamp-2 sm:line-clamp-3">
-        {{ name }}
-      </h1>
-      <!-- Description section for non-owners -->
-      <div v-if="description" class="mt-3">
-        <article class="text-muted-foreground prose prose-sm max-w-none dark:prose-invert" v-html="renderedDescription"></article>
-      </div>
-    </div>
     <Separator class="my-4" />
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
         <div class="text-xs px-2 py-1 rounded font-medium" :style="{ backgroundColor: authorColor, color: textColor }">
           {{ video.author }}
         </div>
-        <span>Duration: {{ formatDuration(video.duration) }}</span>
-        <span>Uploaded: {{ new Date(video.createdAt).toLocaleDateString() }}</span>
+        <span class="inline-flex items-center gap-1.5">
+          <Clock class="size-3.5" />
+          {{ formatDuration(video.duration) }}
+        </span>
+        <span class="inline-flex items-center gap-1.5">
+          <Calendar class="size-3.5" />
+          {{ new Date(video.createdAt).toLocaleDateString() }}
+        </span>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <!-- Copy button -->
         <Button variant="secondary" size="sm" @click="copyLink">
-          <LinkIcon class="size-4" />
-          Copy Link
-          <span v-if="includeTimestamp">{{ formatDuration(currentTime) }}</span>
+          <Check v-if="justCopied" class="size-4" />
+          <LinkIcon v-else class="size-4" />
+          {{ justCopied ? 'Copied!' : 'Copy Link' }}
+          <span v-if="includeTimestamp && !justCopied">{{ formatDuration(currentTime) }}</span>
         </Button>
 
         <!-- Timestamp toggle -->
@@ -316,7 +392,7 @@ watch(
 
         <Separator class="block sm:hidden my-4" />
         <!-- Download button -->
-        <a :href="video.sourceVideoFile" :download="video.name" :class="buttonVariants({ variant: 'default', size: 'sm' })" class="bg-green-600 hover:bg-green-700 text-white">
+        <a :href="video.sourceVideoFile" :download="video.name" :class="buttonVariants({ variant: 'secondary', size: 'sm' })">
           <Download class="size-4" />
           Download
         </a>

@@ -129,13 +129,13 @@ describe('VideoInfo', () => {
     const deleteButton = findByText(wrapper, 'button', 'Delete Video')
     await deleteButton.trigger('click')
 
-    expect(body.text()).toContain('Are you sure you want to delete this video?')
+    expect(body.text()).toContain('Are you sure you want to delete "My Clip"?')
     expect(wrapper.emitted('delete-video')).toBeFalsy()
 
     const cancelButton = findByText(body, 'button', 'Cancel')
     await cancelButton.trigger('click')
     expect(wrapper.emitted('delete-video')).toBeFalsy()
-    expect(body.text()).not.toContain('Are you sure you want to delete this video?')
+    expect(body.text()).not.toContain('Are you sure you want to delete "My Clip"?')
 
     await deleteButton.trigger('click')
     const confirmButton = findByText(body, 'button', 'Delete')
@@ -173,6 +173,49 @@ describe('VideoInfo', () => {
 
     const lastEmit = wrapper.emitted('update-video').at(-1)[0]
     expect(lastEmit.unlisted).toBe(true)
+  })
+
+  it('shows a persistent unlisted badge for the owner when the video is unlisted', () => {
+    mockUser.value = { username: 'alice' }
+    const wrapper = mount(VideoInfo, { props: { video: { ...baseVideo, unlisted: true }, videoPlayer: null } })
+
+    expect(wrapper.text()).toContain('Unlisted')
+  })
+
+  it('reverts an emptied title back to the last saved value on blur', async () => {
+    mockUser.value = { username: 'alice' }
+    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+
+    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+    const titleInput = wrapper.find('input[placeholder="Video title"]')
+    await titleInput.setValue('   ')
+    await titleInput.trigger('blur')
+
+    expect(titleInput.element.value).toBe('My Clip')
+  })
+
+  it('reverts unsaved title edits when Escape is pressed', async () => {
+    vi.useFakeTimers()
+    mockUser.value = { username: 'alice' }
+    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+
+    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+    const titleInput = wrapper.find('input[placeholder="Video title"]')
+    await titleInput.setValue('Discard Me')
+    await titleInput.trigger('keydown', { key: 'Escape' })
+
+    expect(wrapper.find('h1').text()).toBe('My Clip')
+    expect(wrapper.emitted('update-video')).toBeFalsy()
+  })
+
+  it('shows a temporary "Copied!" confirmation after copying the link', async () => {
+    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+
+    const copyButton = findByText(wrapper, 'button', 'Copy Link')
+    await copyButton.trigger('click')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(copyButton.text()).toContain('Copied!')
   })
 
   it('emits refresh-video when the refresh button is clicked after processing completes', async () => {
