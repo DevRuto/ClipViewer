@@ -244,6 +244,7 @@ watch(
         <Button
           variant="ghost"
           size="icon"
+          class="size-10 sm:size-9"
           :class="isEditing ? 'text-primary' : 'text-muted-foreground'"
           @click="toggleEdit"
         >
@@ -280,9 +281,9 @@ watch(
       </div>
 
       <!-- Unlisted switch and Delete button - only show when editing -->
-      <div v-if="isEditing" class="flex items-center justify-between">
+      <div v-if="isEditing" class="flex flex-wrap items-center justify-between gap-3">
         <!-- Public/Unlisted toggle switch -->
-        <label class="flex items-center gap-3 text-sm cursor-pointer select-none">
+        <label class="flex items-center gap-3 py-1.5 text-sm cursor-pointer select-none">
           <span :class="unlisted ? 'text-muted-foreground' : 'font-medium text-foreground'">Public</span>
           <Switch v-model="unlisted" />
           <span :class="unlisted ? 'font-medium text-foreground' : 'text-muted-foreground'">Unlisted</span>
@@ -291,7 +292,7 @@ watch(
         <!-- Delete button -->
         <AlertDialog>
           <AlertDialogTrigger as-child>
-            <Button variant="destructive" size="sm">
+            <Button variant="destructive" size="sm" class="h-10 sm:h-8">
               <Trash2 class="size-4" />
               Delete Video
             </Button>
@@ -372,7 +373,7 @@ watch(
     </div>
 
     <Separator class="my-4" />
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-4">
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
         <div class="text-xs px-2 py-1 rounded font-medium" :style="{ backgroundColor: authorColor, color: textColor }">
           {{ video.author }}
@@ -386,24 +387,29 @@ watch(
           {{ new Date(video.createdAt).toLocaleDateString() }}
         </span>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- Copy button -->
-        <Button variant="secondary" size="sm" @click="copyLink">
-          <Check v-if="justCopied" class="size-4" />
-          <LinkIcon v-else class="size-4" />
-          {{ justCopied ? 'Copied!' : 'Copy Link' }}
-          <span v-if="includeTimestamp && !justCopied">{{ formatDuration(currentTime) }}</span>
-        </Button>
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+        <!-- Copy button + timestamp toggle, grouped together since the toggle only affects
+             what Copy Link copies -->
+        <div class="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:w-auto">
+          <Button variant="secondary" size="sm" class="h-10 flex-1 sm:h-8 sm:flex-none" @click="copyLink">
+            <Check v-if="justCopied" class="size-4" />
+            <LinkIcon v-else class="size-4" />
+            {{ justCopied ? 'Copied!' : 'Copy Link' }}
+            <span v-if="includeTimestamp && !justCopied">{{ formatDuration(currentTime) }}</span>
+          </Button>
 
-        <!-- Timestamp toggle -->
-        <label class="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-          <Switch v-model="includeTimestamp" />
-          <span class="whitespace-nowrap">Timestamp</span>
-        </label>
+          <label class="flex shrink-0 items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none sm:text-sm">
+            <Switch v-model="includeTimestamp" />
+            <span class="whitespace-nowrap">With timestamp</span>
+          </label>
+        </div>
 
-        <Separator class="block sm:hidden my-4" />
         <!-- Download button -->
-        <a :href="video.sourceVideoFile" :download="downloadFilename" :class="buttonVariants({ variant: 'secondary', size: 'sm' })">
+        <a
+          :href="video.sourceVideoFile"
+          :download="downloadFilename"
+          :class="[buttonVariants({ variant: 'secondary', size: 'sm' }), 'h-10 w-full sm:h-8 sm:w-auto']"
+        >
           <Download class="size-4" />
           Download
         </a>
