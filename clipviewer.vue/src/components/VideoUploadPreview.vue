@@ -53,14 +53,11 @@ function clearVideoPreview() {
       </Button>
     </div>
 
-    <div class="relative rounded-lg overflow-hidden bg-black" :class="[isEditingMode ? 'max-w-7xl mx-auto' : '']">
-      <VideoPlayer
-        ref="videoPlayerRef"
-        :src="props.videoUrl"
-        class="w-full"
-        :class="[isEditingMode ? 'max-h-[70vh]' : 'max-h-96']"
-        @loaded="onVideoLoaded"
-      />
+    <div
+      class="relative aspect-video overflow-hidden rounded-lg bg-black"
+      :class="[isEditingMode ? 'max-h-[70vh] max-w-7xl mx-auto' : 'max-h-96']"
+    >
+      <VideoPlayer ref="videoPlayerRef" :src="props.videoUrl" @loaded="onVideoLoaded" />
     </div>
 
     <!-- Edit Bar with Toggle -->

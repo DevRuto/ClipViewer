@@ -11,7 +11,7 @@ export default defineConfig({
     vue({
       template: {
         compilerOptions: {
-          isCustomElement: (tag) => tag.startsWith('media-') || tag.startsWith('hls-'),
+          isCustomElement: (tag) => tag === 'hls-video',
         },
       },
     }),
