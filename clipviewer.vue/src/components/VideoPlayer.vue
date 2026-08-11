@@ -119,6 +119,17 @@ function onVideoClick() {
   showControls()
 }
 
+// While playing, a tap that isn't a confirmed edge double-tap pauses (same as onVideoClick).
+// While paused, the big play button is the only thing that resumes playback - a tap anywhere
+// else on the player just toggles the controls overlay instead of also restarting playback.
+function resolveSingleTap() {
+  if (isPlaying.value) {
+    onVideoClick()
+  } else {
+    controlsVisible.value = !controlsVisible.value
+  }
+}
+
 // Touch gesture handling lives on touchstart/touchend rather than the click handler above so it
 // can distinguish a tap from a swipe (a scroll started on the video shouldn't toggle play) and
 // so a confirmed tap can suppress the browser's trailing synthetic click - see onVideoTouchEnd.
@@ -185,7 +196,7 @@ function onVideoTouchEnd(event) {
     // rest of it.
     clearTapTimer()
     if (zone === 'center') {
-      onVideoClick()
+      resolveSingleTap()
     } else {
       seekBy(zone === 'left' ? -SEEK_STEP_LARGE : SEEK_STEP_LARGE)
       flashSeek(zone === 'left' ? 'back' : 'forward')
@@ -195,15 +206,15 @@ function onVideoTouchEnd(event) {
   }
 
   // First tap in this zone - wait for a possible second tap before committing to a plain
-  // toggle-play. This has to apply to the center zone too: toggling play immediately would pop
-  // up the big pause-state play button, which covers the whole player (edges included) and
-  // would steal the second tap of an in-progress edge double-tap out from under this handler.
+  // resolution. This has to apply to the center zone too: resolving immediately would change
+  // the controls overlay (play button / control bar) before we know whether the user is
+  // mid-double-tap, which could shift what a second tap in another zone lands on.
   clearTapTimer()
   pendingTapZone = zone
   tapTimer = setTimeout(() => {
     tapTimer = null
     pendingTapZone = null
-    onVideoClick()
+    resolveSingleTap()
   }, DOUBLE_TAP_WINDOW)
 }
 
@@ -302,20 +313,23 @@ function onKeydown(event) {
         <Loader2 class="size-12 animate-spin text-white/90" />
       </div>
 
-      <!-- Big center play button while paused -->
-      <button
+      <!-- Big center play button while paused. Sized to just the button (not the full player)
+           so a tap elsewhere only toggles the controls overlay instead of also resuming
+           playback - see resolveSingleTap. -->
+      <div
         v-else-if="!isPlaying"
-        type="button"
-        class="absolute inset-0 flex items-center justify-center"
-        title="Play"
-        @click="onVideoClick"
+        class="pointer-events-none absolute inset-0 flex items-center justify-center transition-opacity duration-200"
+        :class="controlsVisible ? 'opacity-100' : 'opacity-0'"
       >
-        <span
-          class="flex size-16 items-center justify-center rounded-full bg-black/50 text-white transition-transform hover:scale-105"
+        <button
+          type="button"
+          class="pointer-events-auto flex size-16 items-center justify-center rounded-full bg-black/50 text-white transition-transform hover:scale-105"
+          title="Play"
+          @click="onVideoClick"
         >
           <Play class="size-8 translate-x-0.5" fill="currentColor" />
-        </span>
-      </button>
+        </button>
+      </div>
 
       <!-- Gesture-seek flash: brief +/-10s indicator after a double-tap on the left/right edge -->
       <div
