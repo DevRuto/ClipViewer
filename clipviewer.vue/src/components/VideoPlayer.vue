@@ -16,6 +16,15 @@ const VOLUME_STEP = 0.05
 const CONTROLS_HIDE_DELAY = 2500
 const PREVENT_DEFAULT_KEYS = new Set([' ', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'home', 'end'])
 
+// Touch gesture tuning: tapping the outer 30% of the player is a candidate for a double-tap
+// seek; a second tap in the same zone within the window seeks, otherwise it falls back to a
+// normal toggle-play tap. TAP_MOVE_THRESHOLD tells a tap apart from a swipe/scroll started on
+// the video so scrolling the page past the player isn't misread as a gesture.
+const EDGE_ZONE_RATIO = 0.3
+const DOUBLE_TAP_WINDOW = 300
+const TAP_MOVE_THRESHOLD = 10
+const TAP_MAX_DURATION = 500
+
 const props = defineProps({
   src: {
     type: String,
@@ -99,11 +108,103 @@ watch(isPlaying, (playing) => {
   }
 })
 
-onBeforeUnmount(() => clearTimeout(hideTimer))
+onBeforeUnmount(() => {
+  clearTimeout(hideTimer)
+  clearTapTimer()
+  clearTimeout(seekFlashTimer)
+})
 
 function onVideoClick() {
   togglePlay()
   showControls()
+}
+
+// Touch gesture handling lives on touchstart/touchend rather than the click handler above so it
+// can distinguish a tap from a swipe (a scroll started on the video shouldn't toggle play) and
+// so a confirmed tap can suppress the browser's trailing synthetic click - see onVideoTouchEnd.
+let touchStartX = 0
+let touchStartY = 0
+let touchStartTime = 0
+let tapTimer = null
+let pendingTapZone = null
+const seekFlash = ref(null)
+const seekFlashKey = ref(0)
+let seekFlashTimer = null
+
+function clearTapTimer() {
+  clearTimeout(tapTimer)
+  tapTimer = null
+  pendingTapZone = null
+}
+
+function flashSeek(direction) {
+  clearTimeout(seekFlashTimer)
+  seekFlash.value = direction
+  seekFlashKey.value++
+  seekFlashTimer = setTimeout(() => {
+    seekFlash.value = null
+  }, 600)
+}
+
+function zoneForX(clientX, rect) {
+  if (rect.width === 0) return 'center'
+  const ratio = (clientX - rect.left) / rect.width
+  if (ratio < EDGE_ZONE_RATIO) return 'left'
+  if (ratio > 1 - EDGE_ZONE_RATIO) return 'right'
+  return 'center'
+}
+
+function onVideoTouchStart(event) {
+  const touch = event.touches?.[0]
+  if (!touch) return
+  touchStartX = touch.clientX
+  touchStartY = touch.clientY
+  touchStartTime = Date.now()
+}
+
+function onVideoTouchEnd(event) {
+  const touch = event.changedTouches?.[0]
+  if (!touch) return
+
+  const movedTooFar =
+    Math.abs(touch.clientX - touchStartX) > TAP_MOVE_THRESHOLD ||
+    Math.abs(touch.clientY - touchStartY) > TAP_MOVE_THRESHOLD
+  if (movedTooFar || Date.now() - touchStartTime > TAP_MAX_DURATION) {
+    // A real scroll/swipe - leave it to the browser and drop any pending double-tap window.
+    clearTapTimer()
+    return
+  }
+
+  // Confirmed tap: handle it here and suppress the trailing synthetic click so it isn't
+  // double-handled by the @click listener below.
+  event.preventDefault()
+  const zone = zoneForX(touch.clientX, event.currentTarget.getBoundingClientRect())
+
+  if (tapTimer && zone === pendingTapZone) {
+    // Second tap in the same zone within the window - resolve now instead of waiting out the
+    // rest of it.
+    clearTapTimer()
+    if (zone === 'center') {
+      onVideoClick()
+    } else {
+      seekBy(zone === 'left' ? -SEEK_STEP_LARGE : SEEK_STEP_LARGE)
+      flashSeek(zone === 'left' ? 'back' : 'forward')
+      showControls()
+    }
+    return
+  }
+
+  // First tap in this zone - wait for a possible second tap before committing to a plain
+  // toggle-play. This has to apply to the center zone too: toggling play immediately would pop
+  // up the big pause-state play button, which covers the whole player (edges included) and
+  // would steal the second tap of an in-progress edge double-tap out from under this handler.
+  clearTapTimer()
+  pendingTapZone = zone
+  tapTimer = setTimeout(() => {
+    tapTimer = null
+    pendingTapZone = null
+    onVideoClick()
+  }, DOUBLE_TAP_WINDOW)
 }
 
 function onMouseLeaveRoot() {
@@ -165,6 +266,8 @@ function onKeydown(event) {
       class="h-full w-full object-contain"
       playsinline
       @click="onVideoClick"
+      @touchstart="onVideoTouchStart"
+      @touchend="onVideoTouchEnd"
     ></video>
     <hls-video
       v-else
@@ -176,6 +279,8 @@ function onKeydown(event) {
       playsinline
       class="h-full w-full object-contain"
       @click="onVideoClick"
+      @touchstart="onVideoTouchStart"
+      @touchend="onVideoTouchEnd"
     ></hls-video>
 
     <!-- Loading state -->
@@ -212,6 +317,19 @@ function onKeydown(event) {
         </span>
       </button>
 
+      <!-- Gesture-seek flash: brief +/-10s indicator after a double-tap on the left/right edge -->
+      <div
+        v-if="seekFlash"
+        :key="seekFlashKey"
+        class="seek-flash-indicator pointer-events-none absolute inset-y-0 flex w-2/5 items-center justify-center"
+        :class="seekFlash === 'back' ? 'left-0' : 'right-0'"
+      >
+        <span class="flex flex-col items-center gap-1 rounded-full bg-black/60 px-4 py-3 text-white">
+          <component :is="seekFlash === 'back' ? SkipBack : SkipForward" class="size-6" />
+          <span class="text-xs font-medium">10s</span>
+        </span>
+      </div>
+
       <!-- Controls bar -->
       <div
         class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent pt-8 transition-opacity duration-200"
@@ -229,7 +347,7 @@ function onKeydown(event) {
             @scrub-end="scheduleHide"
           />
         </div>
-        <div class="flex items-center gap-0.5 px-1.5 pb-1.5">
+        <div class="flex items-center gap-0.5 pointer-coarse:gap-1.5 px-1.5 pointer-coarse:px-2 pb-1.5 pointer-coarse:pb-2">
           <button type="button" :class="playerButtonClass" :title="isPlaying ? 'Pause' : 'Play'" @click="togglePlay">
             <Pause v-if="isPlaying" class="size-[18px]" fill="currentColor" />
             <Play v-else class="size-[18px]" fill="currentColor" />
@@ -285,6 +403,25 @@ function onKeydown(event) {
 @container player (max-width: 340px) {
   .skip-btn {
     display: none;
+  }
+}
+
+.seek-flash-indicator {
+  animation: seek-flash-fade 600ms ease-out;
+}
+
+@keyframes seek-flash-fade {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
   }
 }
 

@@ -43,7 +43,7 @@ function onSliderInput(event) {
       min="0"
       max="1"
       step="0.05"
-      class="volume-slider ml-0.5 w-0 opacity-0 transition-[width,opacity] group-hover/volume:w-20 group-hover/volume:opacity-100 group-focus-within/volume:w-20 group-focus-within/volume:opacity-100"
+      class="volume-slider ml-0.5 w-0 opacity-0 transition-[width,opacity] group-hover/volume:w-20 group-hover/volume:opacity-100 group-focus-within/volume:w-20 group-focus-within/volume:opacity-100 pointer-coarse:w-14 pointer-coarse:opacity-100"
       :value="effectiveVolume"
       :style="{ '--volume-pct': `${effectiveVolume * 100}%` }"
       aria-label="Volume"

@@ -225,7 +225,7 @@ watch(
 </script>
 
 <template>
-  <div class="p-6">
+  <div class="p-4 sm:p-6">
     <div v-if="ownsVideo" class="mb-4 space-y-3">
       <!-- Editable title with toggle icon -->
       <div class="flex items-center gap-2">

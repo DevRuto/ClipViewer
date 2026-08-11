@@ -37,7 +37,9 @@ const isResizingPlayer = ref(false)
 // in App.vue. On mobile the handle is hidden and any previously-saved desktop width is ignored
 // so the player always falls back to the normal responsive layout.
 const MOBILE_MEDIA_QUERY = '(max-width: 767px)'
-const isMobile = ref(false)
+// Read synchronously (rather than waiting for onMounted) so the mobile edge-to-edge layout is
+// correct on first paint instead of flashing the desktop layout for a frame.
+const isMobile = ref(typeof window.matchMedia === 'function' ? window.matchMedia(MOBILE_MEDIA_QUERY).matches : false)
 let mobileMediaQuery = null
 
 function updateIsMobile(event) {
@@ -242,25 +244,32 @@ async function refreshVideo() {
 </script>
 
 <template>
-  <div :class="['mx-auto px-4 py-8', { container: !effectivePlayerWidth }]">
-    <div v-if="loading" class="max-w-5xl mx-auto">
+  <div v-if="loading" :class="isMobile ? '' : 'container mx-auto px-4 py-8'">
+    <div v-if="isMobile">
+      <Skeleton class="aspect-video w-full mb-4" />
+      <div class="px-4">
+        <Skeleton class="h-8 w-2/3 mb-2" />
+        <Skeleton class="h-4 w-1/3" />
+      </div>
+    </div>
+    <div v-else class="max-w-5xl mx-auto">
       <Skeleton class="aspect-video w-full rounded-lg mb-4" />
       <Skeleton class="h-8 w-2/3 mb-2" />
       <Skeleton class="h-4 w-1/3" />
-      <p class="sr-only">Loading video...</p>
     </div>
+    <p class="sr-only">Loading video...</p>
+  </div>
 
+  <div v-else-if="video" :class="isMobile ? '' : ['mx-auto px-4 py-8', { container: !effectivePlayerWidth }]">
     <div
-      v-else-if="video"
       ref="containerRef"
-      class="mx-auto"
-      :class="!effectivePlayerWidth ? 'max-w-5xl' : ''"
+      :class="[isMobile ? '' : 'mx-auto', !isMobile && !effectivePlayerWidth ? 'max-w-5xl' : '']"
       :style="effectivePlayerWidth ? { width: `${effectivePlayerWidth}px`, maxWidth: '100%' } : undefined"
     >
-      <Alert v-if="error" variant="destructive" class="mb-4">
+      <Alert v-if="error" variant="destructive" :class="isMobile ? 'mx-4 mt-4' : 'mb-4'">
         <AlertDescription>{{ error }}</AlertDescription>
       </Alert>
-      <Card class="overflow-hidden py-0 gap-0">
+      <Card class="overflow-hidden py-0 gap-0" :class="isMobile ? 'rounded-none border-x-0 border-t-0 shadow-none' : ''">
         <div class="relative aspect-video w-full">
           <VideoPlayer
             ref="videoPlayer"
@@ -293,21 +302,21 @@ async function refreshVideo() {
         />
       </Card>
     </div>
+  </div>
 
-    <div v-else-if="error" class="text-center py-12">
-      <AlertCircle class="size-16 text-destructive mx-auto mb-4" />
-      <p class="text-muted-foreground text-lg mb-2">Unable to load video</p>
-      <p class="text-muted-foreground/70">{{ error }}</p>
-      <Button variant="link" class="mt-4" @click="refreshVideo">Try again</Button>
-    </div>
+  <div v-else-if="error" class="container mx-auto px-4 py-12 text-center">
+    <AlertCircle class="size-16 text-destructive mx-auto mb-4" />
+    <p class="text-muted-foreground text-lg mb-2">Unable to load video</p>
+    <p class="text-muted-foreground/70">{{ error }}</p>
+    <Button variant="link" class="mt-4" @click="refreshVideo">Try again</Button>
+  </div>
 
-    <div v-else class="text-center py-12">
-      <VideoOff class="size-16 text-muted-foreground mx-auto mb-4" />
-      <p class="text-muted-foreground text-lg mb-2">Video not found</p>
-      <p class="text-muted-foreground/70">The video you're looking for doesn't exist.</p>
-      <RouterLink to="/browse" class="mt-4 inline-block text-primary hover:underline">
-        ← Back to clips
-      </RouterLink>
-    </div>
+  <div v-else class="container mx-auto px-4 py-12 text-center">
+    <VideoOff class="size-16 text-muted-foreground mx-auto mb-4" />
+    <p class="text-muted-foreground text-lg mb-2">Video not found</p>
+    <p class="text-muted-foreground/70">The video you're looking for doesn't exist.</p>
+    <RouterLink to="/browse" class="mt-4 inline-block text-primary hover:underline">
+      ← Back to clips
+    </RouterLink>
   </div>
 </template>
