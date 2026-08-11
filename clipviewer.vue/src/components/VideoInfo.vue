@@ -157,6 +157,17 @@ function toggleEdit() {
   isEditing.value = !isEditing.value
 }
 
+// The `download` attribute replaces the filename entirely rather than just suggesting one, so
+// video.name (a user-editable title, not a filename) needs the source file's extension appended
+// or the browser saves the download with no extension at all.
+const downloadFilename = computed(() => {
+  const src = props.video?.sourceVideoFile || ''
+  const extMatch = /\.[a-zA-Z0-9]+$/.exec(src)
+  const ext = extMatch ? extMatch[0] : ''
+  const baseName = props.video?.name || props.video?.videoId || 'video'
+  return ext && !baseName.toLowerCase().endsWith(ext.toLowerCase()) ? `${baseName}${ext}` : baseName
+})
+
 function handleEnterKey(event) {
   event.target.blur()
   isEditing.value = false
@@ -392,7 +403,7 @@ watch(
 
         <Separator class="block sm:hidden my-4" />
         <!-- Download button -->
-        <a :href="video.sourceVideoFile" :download="video.name" :class="buttonVariants({ variant: 'secondary', size: 'sm' })">
+        <a :href="video.sourceVideoFile" :download="downloadFilename" :class="buttonVariants({ variant: 'secondary', size: 'sm' })">
           <Download class="size-4" />
           Download
         </a>
