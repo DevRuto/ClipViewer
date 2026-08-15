@@ -66,7 +66,7 @@ public partial class VideoConversionWorker(
 
             var sourceFile =
                 Path.Combine(job.OutputDirectory, "source", $"{job.VideoId}{Path.GetExtension(job.InputPath)}");
-            Directory.CreateDirectory(Path.GetDirectoryName(sourceFile));
+            Directory.CreateDirectory(Path.GetDirectoryName(sourceFile)!);
 
             if (File.Exists(sourceFile))
                 File.Delete(sourceFile);
@@ -76,7 +76,7 @@ public partial class VideoConversionWorker(
                 var tempSource = Path.Combine(job.OutputDirectory, "source", "original",
                     $"{job.VideoId}{Path.GetExtension(job.InputPath)}");
 
-                Directory.CreateDirectory(Path.GetDirectoryName(tempSource));
+                Directory.CreateDirectory(Path.GetDirectoryName(tempSource)!);
                 File.Copy(job.InputPath, tempSource);
                 await TrimVideo(tempSource, $"{sourceFile}", job.StartTime, job.EndTime);
                 LogTrimVideo(logger, job.JobId, job.VideoId, job.StartTime, job.EndTime);
@@ -174,7 +174,7 @@ public partial class VideoConversionWorker(
 
     [LoggerMessage(LogLevel.Information, "No processing occured {job} - {videoId} - {path}")]
     static partial void LogNoProcessingFinished(
-        ILogger<VideoConversionWorker> logger, Guid job, string videoId, string path);
+        ILogger<VideoConversionWorker> logger, Guid job, string? videoId, string path);
 
     [LoggerMessage(LogLevel.Error, "Unable to delete temporary file {path}")]
     static partial void LogUnableToDeleteTempFile(ILogger<VideoConversionWorker> logger, string path);
@@ -183,7 +183,7 @@ public partial class VideoConversionWorker(
     static partial void LogTrimVideo(
         ILogger<VideoConversionWorker> logger, Guid job, string videoId, int start, int? end);
 
-    [LoggerMessage(LogLevel.Error, "Unable to process video {job}\n{e}")]
+    [LoggerMessage(LogLevel.Error, "Unable to process video {job}")]
     static partial void LogUnableToProcessVideo(ILogger<VideoConversionWorker> logger, Guid job, Exception e);
 
     [LoggerMessage(LogLevel.Error, "Error in conversion poll loop")]
@@ -223,7 +223,7 @@ public partial class VideoConversionWorker(
 
     private static Task GenerateThumbnail(string videoFile, string destinationFile, CancellationToken stoppingToken)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
 
         var conversion = FFmpeg.Conversions.New()
             .AddParameter($"-i \"{videoFile}\"")
