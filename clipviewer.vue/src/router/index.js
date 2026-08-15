@@ -41,6 +41,12 @@ const router = createRouter({
       meta: { title: 'Video - ClipViewer' },
     },
     {
+      path: '/stats',
+      name: 'stats',
+      component: () => import('../views/StatsView.vue'),
+      meta: { requiresAuth: true, title: 'Your Stats - ClipViewer' },
+    },
+    {
       path: '/admin/users',
       name: 'admin-users',
       component: () => import('../views/UsersView.vue'),

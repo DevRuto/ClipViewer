@@ -142,6 +142,7 @@ public partial class VideoConversionWorker(
             dbVideo.Thumbnail = $"/thumbnails/{job.VideoId}.jpg";
             dbVideo.HlsPlaylistFile = $"/hls/{job.VideoId}/playlist.m3u8";
             dbVideo.Processed = true;
+            dbVideo.SizeBytes = GetFileSize(sourceFile) + GetFileSize(thumbnailPath) + GetDirectorySize(hlsPath);
             job.CompletedAt = DateTime.UtcNow;
             job.Status = "Completed";
 
@@ -252,4 +253,46 @@ public partial class VideoConversionWorker(
 
         await conversion.Start();
     }
+
+    private static long GetFileSize(string path) =>
+        !string.IsNullOrEmpty(path) && File.Exists(path) ? new FileInfo(path).Length : 0;
+
+    private static long GetDirectorySize(string path) =>
+        Directory.Exists(path)
+            ? new DirectoryInfo(path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length)
+            : 0;
+
+    // One-off backfill for clips that were processed before VideoClip.SizeBytes existed - resolves
+    // the clip's stored relative paths against OutputVideoFolder, unlike the direct absolute paths
+    // ProcessAsync already has on hand right after conversion. Invoked via `--backfill-sizes` (see
+    // Program.cs); safe to re-run since it just recomputes and overwrites SizeBytes each time.
+    public static async Task<int> BackfillClipSizesAsync(
+        ApplicationDbContext dbContext, string outputVideoFolder, CancellationToken cancellationToken = default)
+    {
+        var clips = await dbContext.VideoClips.Where(c => c.Processed).ToListAsync(cancellationToken);
+
+        foreach (var clip in clips)
+        {
+            var sourceSize = GetFileSize(ResolveOutputPath(outputVideoFolder, clip.SourceVideoFile));
+            var thumbnailSize = GetFileSize(ResolveOutputPath(outputVideoFolder, clip.Thumbnail));
+
+            var hlsFolder = string.IsNullOrEmpty(clip.HlsPlaylistFile)
+                ? null
+                : Path.GetDirectoryName(TrimLeadingSeparators(clip.HlsPlaylistFile));
+            var hlsSize = string.IsNullOrEmpty(hlsFolder)
+                ? 0
+                : GetDirectorySize(Path.Combine(outputVideoFolder, hlsFolder));
+
+            clip.SizeBytes = sourceSize + thumbnailSize + hlsSize;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return clips.Count;
+    }
+
+    private static string ResolveOutputPath(string outputVideoFolder, string relativePath) =>
+        string.IsNullOrEmpty(relativePath) ? "" : Path.Combine(outputVideoFolder, TrimLeadingSeparators(relativePath));
+
+    private static string TrimLeadingSeparators(string path) =>
+        path.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 }

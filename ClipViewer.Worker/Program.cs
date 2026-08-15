@@ -43,7 +43,17 @@ try
     if (!Directory.Exists(outputVideoFolder)) Directory.CreateDirectory(outputVideoFolder);
     if (!Directory.Exists(tempVideoFolder)) Directory.CreateDirectory(tempVideoFolder);
 
-    host.Run();
+    if (args.Contains("--backfill-sizes"))
+    {
+        using var scope = host.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var count = await VideoConversionWorker.BackfillClipSizesAsync(dbContext, outputVideoFolder);
+        Log.Information("Backfilled SizeBytes for {Count} clip(s)", count);
+    }
+    else
+    {
+        host.Run();
+    }
 }
 catch (Exception ex)
 {

@@ -1,6 +1,6 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
-import { Menu, LogOut, UserRound, Users } from '@lucide/vue'
+import { Menu, LogOut, UserRound, Users, ChartColumn } from '@lucide/vue'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 import ThemeCustomizer from '@/components/ThemeCustomizer.vue'
 import GithubIcon from '@/components/icons/GithubIcon.vue'
@@ -72,13 +72,19 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>{{ user?.username }}</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem as-child>
+                <RouterLink to="/stats">
+                  <ChartColumn class="size-4" />
+                  Your Stats
+                </RouterLink>
+              </DropdownMenuItem>
               <DropdownMenuItem v-if="isAdmin" as-child>
                 <RouterLink to="/admin/users">
                   <Users class="size-4" />
                   Manage Users
                 </RouterLink>
               </DropdownMenuItem>
-              <DropdownMenuSeparator v-if="isAdmin" />
+              <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" @click="logout">
                 <LogOut class="size-4" />
                 Sign Out
@@ -130,6 +136,11 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
                 <template v-if="isAuthenticated">
                   <Separator class="my-2" />
                   <p class="px-4 py-1 text-sm text-muted-foreground">{{ user?.username }}</p>
+                  <SheetClose as-child>
+                    <RouterLink to="/stats" :class="navLinkClass" active-class="text-primary bg-accent">
+                      Your Stats
+                    </RouterLink>
+                  </SheetClose>
                   <SheetClose v-if="isAdmin" as-child>
                     <RouterLink to="/admin/users" :class="navLinkClass" active-class="text-primary bg-accent">
                       Manage Users

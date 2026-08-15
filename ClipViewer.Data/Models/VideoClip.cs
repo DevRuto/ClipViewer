@@ -26,6 +26,7 @@ public class VideoClip
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool Processed { get; set; }
     public bool Unlisted { get; set; }
+    public long SizeBytes { get; set; }
 
     // User relationship
     [Required]
