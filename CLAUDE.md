@@ -72,6 +72,13 @@ dotnet ef database update --project ClipViewer.API --startup-project ClipViewer.
 The API auto-applies pending migrations on startup (`context.Database.Migrate()` in `Program.cs`), so
 `database update` is mainly useful for local inspection/rollback.
 
+`VideoClip.SizeBytes` is computed once by the Worker right after a clip finishes converting (see
+`VideoConversionWorker.ProcessAsync`), not read live from disk, so `StatsController` can just sum the
+column. Clips processed before that column existed need a one-off backfill:
+```sh
+dotnet run --project ClipViewer.Worker -- --backfill-sizes
+```
+
 ### Frontend (`clipviewer.vue/`)
 ```sh
 npm install
@@ -91,7 +98,9 @@ docker compose up --build
 Serves the app at http://localhost:5000; Postgres on 5432. `./output`, `./logs`, `./worker-logs` are
 bind-mounted so API and Worker share the same media files. `scripts/create_user.sh` /
 `scripts/update_user.sh` connect to the compose Postgres container to provision/rotate a user's API key.
-`scripts/backup_db.sh` dumps the compose Postgres database to `db_backup/`.
+`scripts/backup_db.sh` dumps the compose Postgres database to `db_backup/`. One-off Worker commands
+(e.g. the `VideoClip.SizeBytes` backfill below) run as a throwaway container sharing the same service
+config instead of exec-ing into the long-running one: `docker compose run --rm worker --backfill-sizes`.
 
 ## Notes
 

@@ -206,8 +206,9 @@ public partial class VideoConversionWorker(
             .AddParameter("-c:v libx264") // Video codec
             .AddParameter("-profile:v main") // H.264 profile
             .AddParameter("-level 4.0") // H.264 level
-            .AddParameter("-b:v 5000k") // Video bitrate
-            .AddParameter("-maxrate 5500k") // Maximum bitrate
+            .AddParameter("-preset slow") // Slower preset = better compression for the same quality
+            .AddParameter("-crf 23") // Constant-quality target instead of a flat bitrate
+            .AddParameter("-maxrate 5000k") // Cap for high-motion/high-res content only
             .AddParameter("-bufsize 10000k") // Buffer size
             .AddParameter("-c:a aac") // Audio codec
             .AddParameter("-b:a 128k") // Audio bitrate

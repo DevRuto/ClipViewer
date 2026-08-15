@@ -128,10 +128,22 @@ public class VideosController(
         var video = await context.VideoClips
             .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId);
         if (video == null) return NotFound();
+
+        // Grab any lingering raw uploads (e.g. from a failed conversion job that was never retried)
+        // before the cascade delete removes the job rows.
+        var inputPaths = await context.VideoConversionJobs
+            .Where(j => j.VideoClipId == video.Id)
+            .Select(j => j.InputPath)
+            .ToListAsync();
+
         context.VideoClips.Remove(video);
         await context.SaveChangesAsync();
         try
         {
+            foreach (var inputPath in inputPaths)
+                if (!string.IsNullOrEmpty(inputPath) && System.IO.File.Exists(inputPath))
+                    System.IO.File.Delete(inputPath);
+
             // Delete source file
             var sourcePath = Path.Combine(_outputVideoFolder,
                 video.SourceVideoFile.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));

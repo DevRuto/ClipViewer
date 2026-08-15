@@ -286,6 +286,28 @@ public class VideosControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteVideo_WithLingeringFailedJobInput_DeletesTempUpload()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "My Video");
+        var tempInputPath = Path.Combine(_outputFolder, "temp-input.mp4");
+        File.WriteAllText(tempInputPath, "raw upload");
+        _context.VideoConversionJobs.Add(new VideoConversionJob(1, tempInputPath, _outputFolder, Guid.NewGuid())
+        {
+            VideoClipId = clip.Id,
+            Status = "Error",
+            CreatedAt = DateTime.UtcNow
+        });
+        await _context.SaveChangesAsync();
+
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.DeleteVideo(clip.VideoId);
+
+        Assert.True(Assert.IsType<bool>(result.Value));
+        Assert.False(File.Exists(tempInputPath));
+    }
+
+    [Fact]
     public async Task DeleteVideo_AsNonOwner_ReturnsNotFoundAndKeepsRow()
     {
         var (_, clip) = await SeedVideoAsync(1, "My Video");
