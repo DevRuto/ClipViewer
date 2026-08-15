@@ -17,8 +17,15 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      const { logout, login, apiKey } = useAuth()
       const originalRequest = error.config
+
+      // A 401 from the login call itself is a bad API key, not an expired token - let it
+      // propagate to useAuth.login()'s own catch instead of retrying login from here too.
+      if (originalRequest?.url?.includes('/api/auth/login')) {
+        return Promise.reject(error)
+      }
+
+      const { logout, login, apiKey } = useAuth()
 
       // If we have an API key and haven't already retried this request, try to refresh the token
       if (apiKey.value && !originalRequest?._retry) {
