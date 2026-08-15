@@ -67,9 +67,10 @@ it, which is how the frontend polls for conversion progress.
    - Database: PostgreSQL on port 5432
 
 5. **Add a user**
-   - `create_user.sh` connects to the compose Postgres container and creates a user with a given
-     username, printing an API key.
-   - `update_user.sh` rotates the API key for an existing username.
+   - `scripts/create_user.sh` connects to the compose Postgres container and creates a user with a
+     given username, printing an API key.
+   - `scripts/update_user.sh` rotates the API key for an existing username.
+   - `scripts/set_user_role.sh` sets a user's role to `Admin` or `User`.
    - There's no signup endpoint — users are provisioned out-of-band via these scripts.
 
 ## Manual setup (development)

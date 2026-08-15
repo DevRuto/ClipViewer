@@ -33,10 +33,12 @@ written back to the DB as FFmpeg reports it, which is how the frontend can poll 
 
 **Auth:** dual-scheme — JWT bearer for the SPA (`AuthController` exchanges an API key GUID for a JWT)
 and a raw `X-API-Key` header scheme (`ApiKeyAuthMiddleware.cs` / `ApiKeyAuthHandler`) for
-programmatic/API use (e.g. uploading via `create_user.sh`-provisioned keys). A policy scheme
+programmatic/API use (e.g. uploading via `scripts/create_user.sh`-provisioned keys). A policy scheme
 (`JwtOrApiKey`) picks between them based on whether an `Authorization: Bearer` header is present.
-Users are created out-of-band via `create_user.sh` / `update_user.sh` (direct DB scripts) — there is no
-signup endpoint.
+Users are created out-of-band via `scripts/create_user.sh` / `scripts/update_user.sh` (direct DB
+scripts) — there is no signup endpoint. Admins can create/manage other users and rotate their keys via
+the `/api/users` endpoints (`UsersController`, `[Authorize(Roles = "Admin")]`); `scripts/set_user_role.sh`
+promotes/demotes a user's role directly against the DB, which is how the first Admin gets bootstrapped.
 
 **File serving:** uploaded/converted media lives on disk under `UploadOptions:OutputVideoFolder`
 (`./output` by default: `output/source`, `output/hls/{videoId}/playlist.m3u8`, `output/thumbnails`) and
@@ -87,8 +89,9 @@ npm run test:coverage
 docker compose up --build
 ```
 Serves the app at http://localhost:5000; Postgres on 5432. `./output`, `./logs`, `./worker-logs` are
-bind-mounted so API and Worker share the same media files. `create_user.sh` / `update_user.sh` connect
-to the compose Postgres container to provision/rotate a user's API key.
+bind-mounted so API and Worker share the same media files. `scripts/create_user.sh` /
+`scripts/update_user.sh` connect to the compose Postgres container to provision/rotate a user's API key.
+`scripts/backup_db.sh` dumps the compose Postgres database to `db_backup/`.
 
 ## Notes
 
