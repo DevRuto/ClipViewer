@@ -12,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -113,6 +112,28 @@ const renderedDescription = computed(() => {
   const rawHtml = marked(description.value)
   return DOMPurify.sanitize(rawHtml)
 })
+
+// The rendered description is clamped to 2 lines by default; Show more/less only appears when
+// the content actually overflows that clamp (measured via scrollHeight vs clientHeight).
+const descRef = ref(null)
+const descExpanded = ref(false)
+const descTruncated = ref(false)
+
+function checkDescTruncation() {
+  nextTick(() => {
+    const el = descRef.value
+    descTruncated.value = !!el && el.scrollHeight - el.clientHeight > 1
+  })
+}
+
+watch(
+  [renderedDescription, isEditing],
+  () => {
+    descExpanded.value = false
+    checkDescTruncation()
+  },
+  { immediate: true },
+)
 
 // Watch for changes and emit to parent
 watch(unlisted, (newValue) => {
@@ -390,15 +411,88 @@ watch(
       {{ name }}
     </h1>
 
-    <!-- Description: editable textarea for the owner, rendered markdown otherwise -->
-    <div v-if="isEditing" class="mb-4 mt-3">
-      <Textarea v-model="description" rows="3" placeholder="Add a description..." class="resize-none" />
-    </div>
-    <div v-else-if="description" class="mb-4 mt-3">
-      <div class="text-muted-foreground prose prose-sm max-w-none dark:prose-invert" v-html="renderedDescription"></div>
+    <!-- Compact meta strip: author, duration, date, read-only tags, and the primary actions.
+         Kept visible in both view and edit mode so Copy Link/Download stay reachable without
+         scrolling past the description. -->
+    <div class="mt-3 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div class="text-xs px-2 py-1 rounded font-medium" :style="{ backgroundColor: authorColor, color: textColor }">
+        {{ video.author }}
+      </div>
+      <span class="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Clock class="size-3.5" />
+        {{ formatDuration(video.duration) }}
+      </span>
+      <span class="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Calendar class="size-3.5" />
+        {{ new Date(video.createdAt).toLocaleDateString() }}
+      </span>
+
+      <!-- Read-only tags; while editing they're managed via the dedicated tag editor below instead -->
+      <template v-if="!isEditing">
+        <RouterLink
+          v-for="t in tags"
+          :key="t"
+          :to="`/browse?tag=${encodeURIComponent(t)}`"
+          class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+        >
+          <TagIcon class="size-3" />
+          {{ t }}
+        </RouterLink>
+      </template>
+
+      <div class="flex-1 min-w-2"></div>
+
+      <!-- Bare for now - no room for the "With timestamp" label in the compact strip -->
+      <Switch
+        v-model="includeTimestamp"
+        class="shrink-0"
+        title="Include current timestamp when copying link"
+        aria-label="Include current timestamp when copying link"
+      />
+
+      <Button
+        variant="secondary"
+        size="icon"
+        class="size-10 sm:size-8 shrink-0"
+        :title="justCopied ? 'Copied!' : 'Copy Link'"
+        @click="copyLink"
+      >
+        <Check v-if="justCopied" class="size-4" />
+        <LinkIcon v-else class="size-4" />
+      </Button>
+
+      <a
+        :href="video.sourceVideoFile"
+        :download="downloadFilename"
+        :class="[buttonVariants({ variant: 'secondary', size: 'icon' }), 'size-10 sm:size-8 shrink-0']"
+        title="Download"
+      >
+        <Download class="size-4" />
+      </a>
     </div>
 
-    <!-- Tags: add/remove chips for the owner while editing, read-only linked chips otherwise -->
+    <!-- Description: editable textarea for the owner, clamped rendered markdown otherwise -->
+    <div v-if="isEditing" class="mb-4">
+      <Textarea v-model="description" rows="3" placeholder="Add a description..." class="resize-none" />
+    </div>
+    <div v-else-if="description" class="mb-4">
+      <div
+        ref="descRef"
+        class="text-muted-foreground prose prose-sm max-w-none dark:prose-invert"
+        :class="{ 'line-clamp-2': !descExpanded }"
+        v-html="renderedDescription"
+      ></div>
+      <button
+        v-if="descTruncated || descExpanded"
+        type="button"
+        class="mt-1 text-xs font-semibold text-primary hover:underline"
+        @click="descExpanded = !descExpanded"
+      >
+        {{ descExpanded ? 'Show less' : 'Show more' }}
+      </button>
+    </div>
+
+    <!-- Tags: add/remove chips for the owner while editing (read-only tags live in the strip above) -->
     <div v-if="isEditing" class="mb-4 flex flex-wrap items-center gap-2">
       <span
         v-for="t in tags"
@@ -418,61 +512,6 @@ watch(
         :maxlength="MAX_TAG_LENGTH"
         @keydown.enter.prevent="addTag"
       />
-    </div>
-    <div v-else-if="tags.length" class="mb-4 flex flex-wrap items-center gap-2">
-      <RouterLink
-        v-for="t in tags"
-        :key="t"
-        :to="`/browse?tag=${encodeURIComponent(t)}`"
-        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-      >
-        <TagIcon class="size-3" />
-        {{ t }}
-      </RouterLink>
-    </div>
-
-    <Separator class="my-4" />
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-4">
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-        <div class="text-xs px-2 py-1 rounded font-medium" :style="{ backgroundColor: authorColor, color: textColor }">
-          {{ video.author }}
-        </div>
-        <span class="inline-flex items-center gap-1.5">
-          <Clock class="size-3.5" />
-          {{ formatDuration(video.duration) }}
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <Calendar class="size-3.5" />
-          {{ new Date(video.createdAt).toLocaleDateString() }}
-        </span>
-      </div>
-      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
-        <!-- Copy button + timestamp toggle, grouped together since the toggle only affects
-             what Copy Link copies -->
-        <div class="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:w-auto">
-          <Button variant="secondary" size="sm" class="h-10 flex-1 sm:h-8 sm:flex-none" @click="copyLink">
-            <Check v-if="justCopied" class="size-4" />
-            <LinkIcon v-else class="size-4" />
-            {{ justCopied ? 'Copied!' : 'Copy Link' }}
-            <span v-if="includeTimestamp && !justCopied">{{ formatDuration(currentTime) }}</span>
-          </Button>
-
-          <label class="flex shrink-0 items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none sm:text-sm">
-            <Switch v-model="includeTimestamp" />
-            <span class="whitespace-nowrap">With timestamp</span>
-          </label>
-        </div>
-
-        <!-- Download button -->
-        <a
-          :href="video.sourceVideoFile"
-          :download="downloadFilename"
-          :class="[buttonVariants({ variant: 'secondary', size: 'sm' }), 'h-10 w-full sm:h-8 sm:w-auto']"
-        >
-          <Download class="size-4" />
-          Download
-        </a>
-      </div>
     </div>
   </div>
 </template>

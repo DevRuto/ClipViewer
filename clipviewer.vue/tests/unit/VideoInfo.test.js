@@ -105,7 +105,7 @@ describe('VideoInfo', () => {
   it('copies the current URL to the clipboard without a timestamp by default', async () => {
     const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
-    const copyButton = findByText(wrapper, 'button', 'Copy Link')
+    const copyButton = wrapper.find('button[title="Copy Link"]')
     await copyButton.trigger('click')
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.href)
@@ -123,7 +123,7 @@ describe('VideoInfo', () => {
     const timestampSwitch = wrapper.find('[role="switch"]')
     await timestampSwitch.trigger('click')
 
-    const copyButton = findByText(wrapper, 'button', /Copy Link/)
+    const copyButton = wrapper.find('button[title="Copy Link"]')
     await copyButton.trigger('click')
 
     const copiedUrl = navigator.clipboard.writeText.mock.calls[0][0]
@@ -227,11 +227,11 @@ describe('VideoInfo', () => {
   it('shows a temporary "Copied!" confirmation after copying the link', async () => {
     const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
-    const copyButton = findByText(wrapper, 'button', 'Copy Link')
+    const copyButton = wrapper.find('button[title="Copy Link"]')
     await copyButton.trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(copyButton.text()).toContain('Copied!')
+    expect(copyButton.attributes('title')).toBe('Copied!')
   })
 
   it('adds a tag and emits update-video immediately', async () => {
