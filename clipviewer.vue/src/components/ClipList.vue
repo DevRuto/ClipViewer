@@ -14,13 +14,20 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  tag: {
+    type: String,
+    default: null,
+  },
 })
 
 async function fetchVideos() {
   error.value = ''
   try {
-    const usernameParam = props.username ? `?user=${props.username}` : ''
-    const res = await api.get(`/api/videos${usernameParam}`)
+    const params = new URLSearchParams()
+    if (props.username) params.set('user', props.username)
+    if (props.tag) params.set('tag', props.tag)
+    const query = params.toString()
+    const res = await api.get(`/api/videos${query ? `?${query}` : ''}`)
     videos.value = res.data
   } catch (err) {
     console.error('Failed to fetch videos:', err)
@@ -29,7 +36,7 @@ async function fetchVideos() {
 }
 
 watch(
-  () => props.username,
+  () => [props.username, props.tag],
   () => {
     videos.value = []
     fetchVideos()

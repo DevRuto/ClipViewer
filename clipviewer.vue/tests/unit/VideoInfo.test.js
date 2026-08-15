@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mount, DOMWrapper } from '@vue/test-utils'
 import { reactive } from 'vue'
+import { createRouter, createWebHistory } from 'vue-router'
 
 const mockUser = vi.hoisted(() => ({ value: null }))
 vi.mock('@/composables/useAuth', () => ({
@@ -8,6 +9,21 @@ vi.mock('@/composables/useAuth', () => ({
 }))
 
 import VideoInfo from '@/components/VideoInfo.vue'
+
+function makeRouter() {
+  return createRouter({
+    history: createWebHistory(),
+    routes: [{ path: '/browse', name: 'browse', component: { template: '<div />' } }],
+  })
+}
+
+// Tag chips render as RouterLinks even outside of edit mode, so every mount needs a router.
+function mountVideoInfo(options = {}) {
+  return mount(VideoInfo, {
+    ...options,
+    global: { ...options.global, plugins: [makeRouter(), ...(options.global?.plugins || [])] },
+  })
+}
 
 const baseVideo = {
   name: 'My Clip',
@@ -40,7 +56,7 @@ describe('VideoInfo', () => {
 
   it('does not show owner-only edit controls for a non-owner', () => {
     mockUser.value = { username: 'someone-else' }
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     expect(wrapper.find('.mb-4.space-y-3').exists()).toBe(false)
     expect(wrapper.text()).toContain('My Clip')
@@ -48,46 +64,46 @@ describe('VideoInfo', () => {
 
   it('shows the edit toggle for the video owner', () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     expect(wrapper.find('.mb-4.space-y-3').exists()).toBe(true)
   })
 
   it('shows a processing indicator with clamped progress while pending', () => {
     const video = { ...baseVideo, status: 'Processing', progress: 250, processed: false }
-    const wrapper = mount(VideoInfo, { props: { video, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video, videoPlayer: null } })
 
     expect(wrapper.text()).toContain('Video status: Processing (100%)')
   })
 
   it('clamps negative progress values to zero', () => {
     const video = { ...baseVideo, status: 'Pending', progress: -5, processed: false }
-    const wrapper = mount(VideoInfo, { props: { video, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video, videoPlayer: null } })
 
     expect(wrapper.text()).toContain('(0%)')
   })
 
   it('shows an error indicator when the job status is Error', () => {
     const video = { ...baseVideo, status: 'Error', processed: false }
-    const wrapper = mount(VideoInfo, { props: { video, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video, videoPlayer: null } })
 
     expect(wrapper.text()).toContain('Video processing failed')
   })
 
   it('falls back to a processed/processing status when no job status is present', () => {
-    const processed = mount(VideoInfo, {
+    const processed = mountVideoInfo({
       props: { video: { ...baseVideo, status: undefined, processed: true }, videoPlayer: null },
     })
     expect(processed.text()).not.toContain('Video status:')
 
-    const processing = mount(VideoInfo, {
+    const processing = mountVideoInfo({
       props: { video: { ...baseVideo, status: undefined, processed: false }, videoPlayer: null },
     })
     expect(processing.text()).toContain('Video status: Processing')
   })
 
   it('copies the current URL to the clipboard without a timestamp by default', async () => {
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     const copyButton = findByText(wrapper, 'button', 'Copy Link')
     await copyButton.trigger('click')
@@ -99,7 +115,7 @@ describe('VideoInfo', () => {
     // `currentTime` is only picked up via a watcher on `videoPlayer.currentTime`,
     // so the prop needs to be reactive and actually change after mount to fire it.
     const videoPlayer = reactive({ currentTime: 0 })
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer } })
 
     videoPlayer.currentTime = 42
     await wrapper.vm.$nextTick()
@@ -119,7 +135,7 @@ describe('VideoInfo', () => {
     // AlertDialog content is teleported to document.body, outside the mounted wrapper's own
     // element tree, so it has to be queried via a DOMWrapper around document.body instead of
     // `wrapper.find()`/`wrapper.text()`.
-    const wrapper = mount(VideoInfo, {
+    const wrapper = mountVideoInfo({
       props: { video: baseVideo, videoPlayer: null },
       attachTo: document.body,
     })
@@ -148,7 +164,7 @@ describe('VideoInfo', () => {
   it('debounces name edits before emitting update-video', async () => {
     vi.useFakeTimers()
     mockUser.value = { username: 'alice' }
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     await wrapper.find('.mb-4.space-y-3 button').trigger('click')
     const titleInput = wrapper.find('input[placeholder="Video title"]')
@@ -165,7 +181,7 @@ describe('VideoInfo', () => {
 
   it('emits update-video immediately when the unlisted toggle changes', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     await wrapper.find('.mb-4.space-y-3 button').trigger('click')
     const unlistedSwitch = wrapper.find('.mb-4.space-y-3 [role="switch"]')
@@ -177,14 +193,14 @@ describe('VideoInfo', () => {
 
   it('shows a persistent unlisted badge for the owner when the video is unlisted', () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mount(VideoInfo, { props: { video: { ...baseVideo, unlisted: true }, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: { ...baseVideo, unlisted: true }, videoPlayer: null } })
 
     expect(wrapper.text()).toContain('Unlisted')
   })
 
   it('reverts an emptied title back to the last saved value on blur', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     await wrapper.find('.mb-4.space-y-3 button').trigger('click')
     const titleInput = wrapper.find('input[placeholder="Video title"]')
@@ -197,7 +213,7 @@ describe('VideoInfo', () => {
   it('reverts unsaved title edits when Escape is pressed', async () => {
     vi.useFakeTimers()
     mockUser.value = { username: 'alice' }
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     await wrapper.find('.mb-4.space-y-3 button').trigger('click')
     const titleInput = wrapper.find('input[placeholder="Video title"]')
@@ -209,7 +225,7 @@ describe('VideoInfo', () => {
   })
 
   it('shows a temporary "Copied!" confirmation after copying the link', async () => {
-    const wrapper = mount(VideoInfo, { props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     const copyButton = findByText(wrapper, 'button', 'Copy Link')
     await copyButton.trigger('click')
@@ -218,8 +234,79 @@ describe('VideoInfo', () => {
     expect(copyButton.text()).toContain('Copied!')
   })
 
+  it('adds a tag and emits update-video immediately', async () => {
+    mockUser.value = { username: 'alice' }
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+
+    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+    const tagInput = wrapper.find('input[placeholder="Add a tag..."]')
+    await tagInput.setValue('funny')
+    await tagInput.trigger('keydown.enter')
+
+    const lastEmit = wrapper.emitted('update-video').at(-1)[0]
+    expect(lastEmit.tags).toEqual(['funny'])
+    expect(tagInput.element.value).toBe('')
+  })
+
+  it('does not add a duplicate tag (case-insensitive)', async () => {
+    mockUser.value = { username: 'alice' }
+    const wrapper = mountVideoInfo({ props: { video: { ...baseVideo, tags: ['Funny'] }, videoPlayer: null } })
+
+    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+    const tagInput = wrapper.find('input[placeholder="Add a tag..."]')
+    await tagInput.setValue('funny')
+    await tagInput.trigger('keydown.enter')
+
+    expect(wrapper.emitted('update-video')).toBeFalsy()
+  })
+
+  it('rejects a tag longer than 30 characters', async () => {
+    mockUser.value = { username: 'alice' }
+    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+
+    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+    const tagInput = wrapper.find('input[placeholder="Add a tag..."]')
+    await tagInput.setValue('a'.repeat(31))
+    await tagInput.trigger('keydown.enter')
+
+    expect(wrapper.emitted('update-video')).toBeFalsy()
+  })
+
+  it('removes a tag and emits update-video', async () => {
+    mockUser.value = { username: 'alice' }
+    const wrapper = mountVideoInfo({
+      props: { video: { ...baseVideo, tags: ['funny', 'gaming'] }, videoPlayer: null },
+    })
+
+    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+    const removeButton = findByText(wrapper, 'span', /funny/)?.find('button')
+    await removeButton.trigger('click')
+
+    const lastEmit = wrapper.emitted('update-video').at(-1)[0]
+    expect(lastEmit.tags).toEqual(['gaming'])
+  })
+
+  it('hides the tag input once the maximum of 15 tags is reached', async () => {
+    mockUser.value = { username: 'alice' }
+    const tags = Array.from({ length: 15 }, (_, i) => `tag${i}`)
+    const wrapper = mountVideoInfo({ props: { video: { ...baseVideo, tags }, videoPlayer: null } })
+
+    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+
+    expect(wrapper.find('input[placeholder="Add a tag..."]').exists()).toBe(false)
+  })
+
+  it('renders tags as links to the browse page when not editing', async () => {
+    const wrapper = mountVideoInfo({
+      props: { video: { ...baseVideo, tags: ['funny'] }, videoPlayer: null },
+    })
+
+    const tagLink = wrapper.findComponent({ name: 'RouterLink' })
+    expect(tagLink.props('to')).toBe('/browse?tag=funny')
+  })
+
   it('emits refresh-video when the refresh button is clicked after processing completes', async () => {
-    const wrapper = mount(VideoInfo, {
+    const wrapper = mountVideoInfo({
       props: { video: { ...baseVideo, status: undefined, processed: false }, videoPlayer: null },
     })
 

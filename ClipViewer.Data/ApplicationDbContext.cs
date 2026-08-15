@@ -47,6 +47,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
             // Add index to VideoId
             entity.HasIndex(e => e.VideoId).IsUnique();
+
+            // GIN index for tag containment/filtering queries
+            entity.HasIndex(e => e.Tags).HasMethod("gin");
         });
 
         // Configure VideoConversionJob entity

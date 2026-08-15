@@ -27,6 +27,7 @@ public class VideoClip
     public bool Processed { get; set; }
     public bool Unlisted { get; set; }
     public long SizeBytes { get; set; }
+    public List<string> Tags { get; set; } = [];
 
     // User relationship
     [Required]

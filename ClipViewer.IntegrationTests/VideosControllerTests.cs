@@ -58,7 +58,7 @@ public class VideosControllerTests : IDisposable
     }
 
     private async Task<(User user, VideoClip clip)> SeedVideoAsync(int userId, string name, bool unlisted = false,
-        DateTime? createdAt = null)
+        DateTime? createdAt = null, List<string>? tags = null)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user == null)
@@ -76,7 +76,8 @@ public class VideosControllerTests : IDisposable
             Unlisted = unlisted,
             UserId = userId,
             User = user,
-            CreatedAt = createdAt ?? DateTime.UtcNow
+            CreatedAt = createdAt ?? DateTime.UtcNow,
+            Tags = tags ?? []
         };
         _context.VideoClips.Add(clip);
         await _context.SaveChangesAsync();
@@ -109,6 +110,34 @@ public class VideosControllerTests : IDisposable
         var videos = Assert.IsAssignableFrom<List<VideoClipDto>>(result.Value);
         Assert.Equal("Newer", videos[0].Name);
         Assert.Equal("Older", videos[1].Name);
+    }
+
+    [Fact]
+    public async Task GetVideoList_WithTagFilter_IsCaseInsensitive()
+    {
+        await SeedVideoAsync(1, "Gaming Clip", tags: ["Gaming"]);
+        await SeedVideoAsync(1, "Cooking Clip", tags: ["cooking"]);
+        var controller = CreateController();
+
+        var result = await controller.GetVideoList(tag: "GAMING");
+
+        var videos = Assert.IsAssignableFrom<List<VideoClipDto>>(result.Value);
+        Assert.Single(videos);
+        Assert.Equal("Gaming Clip", videos[0].Name);
+    }
+
+    [Fact]
+    public async Task GetTags_ReturnsDistinctSortedTags_ExcludingUnlistedOnly()
+    {
+        await SeedVideoAsync(1, "Video A", tags: ["gaming", "funny"]);
+        await SeedVideoAsync(1, "Video B", tags: ["funny", "vlog"]);
+        await SeedVideoAsync(1, "Unlisted Video", unlisted: true, tags: ["secret"]);
+        var controller = CreateController();
+
+        var result = await controller.GetTags();
+
+        var tags = Assert.IsAssignableFrom<List<string>>(result.Value);
+        Assert.Equal(["funny", "gaming", "vlog"], tags);
     }
 
     [Fact]
@@ -188,6 +217,44 @@ public class VideosControllerTests : IDisposable
         var controller = CreateController();
 
         var result = await controller.EditVideo(clip.VideoId, new VideoRequest { Name = "New Name" });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithTags_TrimsAndDedupesCaseInsensitively()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.EditVideo(clip.VideoId,
+            new VideoRequest { Name = "Old Name", Tags = ["  Funny ", "funny", "  ", "gaming"] });
+
+        var dto = Assert.IsType<VideoClipDto>(result.Value);
+        Assert.Equal(["Funny", "gaming"], dto.Tags);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithOverlengthTag_ReturnsBadRequest()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.EditVideo(clip.VideoId,
+            new VideoRequest { Name = "Old Name", Tags = [new string('a', 31)] });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithTooManyTags_ReturnsBadRequest()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+        var tags = Enumerable.Range(0, 16).Select(i => $"tag{i}").ToList();
+
+        var result = await controller.EditVideo(clip.VideoId,
+            new VideoRequest { Name = "Old Name", Tags = tags });
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }

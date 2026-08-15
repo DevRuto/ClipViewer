@@ -192,6 +192,7 @@ async function updateVideo(updatedVideo) {
       unlisted: updatedVideo.unlisted,
       name: updatedVideo.name,
       description: updatedVideo.description,
+      tags: updatedVideo.tags,
     })
 
     if (response.status === 200) {

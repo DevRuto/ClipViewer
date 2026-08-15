@@ -10,22 +10,27 @@ vi.mock('@/composables/useAuth', () => ({
   useAuth: () => mockAuthState,
 }))
 
-const mockRoute = vi.hoisted(() => ({ name: 'browse', params: {} }))
+const mockRoute = vi.hoisted(() => ({ name: 'browse', params: {}, query: {} }))
 const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRoute: () => mockRoute,
   useRouter: () => ({ push: mockPush }),
 }))
 
+vi.mock('@/services/api', () => ({
+  api: { get: vi.fn().mockResolvedValue({ data: [] }) },
+}))
+
 import ClipsView from '@/views/ClipsView.vue'
 
-const ClipListStub = { props: ['username'], template: '<div class="clip-list-stub" />' }
+const ClipListStub = { props: ['username', 'tag'], template: '<div class="clip-list-stub" />' }
 
 describe('ClipsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthState.user.value = null
     mockAuthState.isAuthenticated.value = false
+    mockRoute.query = {}
   })
 
   it('shows "Browse Clips" and no upload button on the browse route', async () => {

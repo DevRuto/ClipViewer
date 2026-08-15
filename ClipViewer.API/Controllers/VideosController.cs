@@ -24,7 +24,8 @@ public class VideosController(
         configuration.GetSection("UploadOptions").GetSection("PublicFilePath").Value ?? "/files";
 
     [HttpGet]
-    public async Task<ActionResult<List<VideoClipDto>>> GetVideoList([FromQuery] string user = "")
+    public async Task<ActionResult<List<VideoClipDto>>> GetVideoList(
+        [FromQuery] string user = "", [FromQuery] string tag = "")
     {
         var currentUser = User.FindFirst(ClaimTypes.Name)?.Value;
 
@@ -48,7 +49,25 @@ public class VideosController(
         }
 
         var videos = await videoQuery.OrderByDescending(video => video.CreatedAt).ToListAsync();
+
+        // EF's InMemory provider can't translate queries over primitive collections (Tags), so
+        // this filter runs client-side after materializing the (much smaller) already-scoped result.
+        if (!string.IsNullOrEmpty(tag))
+            videos = videos.Where(v => v.Tags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase))).ToList();
+
         return videos.Select(v => VideoClipDto.FromEntity(v, _publicFilePath)).ToList();
+    }
+
+    [HttpGet("tags")]
+    public async Task<ActionResult<List<string>>> GetTags()
+    {
+        // See the comment in GetVideoList - primitive collection queries need to run client-side.
+        var allTags = await context.VideoClips
+            .Where(v => !v.Unlisted)
+            .Select(v => v.Tags)
+            .ToListAsync();
+
+        return allTags.SelectMany(t => t).Distinct().OrderBy(t => t).ToList();
     }
 
     [HttpGet("{videoId}")]
@@ -76,6 +95,19 @@ public class VideosController(
         if (request.Description.Length > 1000)
             return BadRequest("Description must be 1000 characters or fewer");
 
+        var tags = new List<string>();
+        foreach (var rawTag in request.Tags)
+        {
+            var tag = rawTag.Trim();
+            if (tag.Length == 0) continue;
+            if (tag.Length > 30)
+                return BadRequest("Tags must be 30 characters or fewer");
+            if (!tags.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase)))
+                tags.Add(tag);
+        }
+        if (tags.Count > 15)
+            return BadRequest("A video may have at most 15 tags");
+
         var video = await context.VideoClips
             .Include(v => v.User)
             .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId);
@@ -85,6 +117,7 @@ public class VideosController(
         video.Name = request.Name;
         video.Unlisted = request.Unlisted;
         video.Description = request.Description;
+        video.Tags = tags;
         await context.SaveChangesAsync();
 
         var latestJob = await context.VideoConversionJobs.OrderByDescending(job => job.CreatedAt)

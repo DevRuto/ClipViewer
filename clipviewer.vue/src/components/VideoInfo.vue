@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, nextTick, onUnmounted, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
@@ -36,7 +37,12 @@ import {
   Calendar,
   Clock,
   EyeOff,
+  Tag as TagIcon,
+  X,
 } from '@lucide/vue'
+
+const MAX_TAGS = 15
+const MAX_TAG_LENGTH = 30
 
 // Debounce utility function
 const debounceTimeoutIds = []
@@ -95,6 +101,8 @@ const unlisted = ref(props.video.unlisted)
 const name = ref(props.video.name)
 const savedName = ref(props.video.name)
 const description = ref(props.video.description || '')
+const tags = ref([...(props.video.tags || [])])
+const newTag = ref('')
 const isEditing = ref(false)
 const wasProcessing = ref(!props.video.processed)
 const titleInputRef = ref(null)
@@ -110,6 +118,24 @@ const renderedDescription = computed(() => {
 watch(unlisted, (newValue) => {
   emit('update-video', { ...props.video, unlisted: newValue })
 })
+
+// Tags are added/removed one at a time (a discrete action), so unlike name/description they're
+// emitted immediately rather than debounced.
+function addTag() {
+  const tag = newTag.value.trim()
+  newTag.value = ''
+  if (!tag || tag.length > MAX_TAG_LENGTH) return
+  if (tags.value.length >= MAX_TAGS) return
+  if (tags.value.some((t) => t.toLowerCase() === tag.toLowerCase())) return
+
+  tags.value = [...tags.value, tag]
+  emit('update-video', { ...props.video, tags: tags.value })
+}
+
+function removeTag(tag) {
+  tags.value = tags.value.filter((t) => t !== tag)
+  emit('update-video', { ...props.video, tags: tags.value })
+}
 
 // Debounced name watcher - blank/whitespace-only titles are never autosaved
 const debouncedNameUpdate = debounce((newValue) => {
@@ -370,6 +396,39 @@ watch(
     </div>
     <div v-else-if="description" class="mb-4 mt-3">
       <div class="text-muted-foreground prose prose-sm max-w-none dark:prose-invert" v-html="renderedDescription"></div>
+    </div>
+
+    <!-- Tags: add/remove chips for the owner while editing, read-only linked chips otherwise -->
+    <div v-if="isEditing" class="mb-4 flex flex-wrap items-center gap-2">
+      <span
+        v-for="t in tags"
+        :key="t"
+        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+      >
+        {{ t }}
+        <button type="button" class="hover:text-destructive" @click="removeTag(t)">
+          <X class="size-3" />
+        </button>
+      </span>
+      <Input
+        v-if="tags.length < MAX_TAGS"
+        v-model="newTag"
+        placeholder="Add a tag..."
+        class="h-7 w-32 text-xs"
+        :maxlength="MAX_TAG_LENGTH"
+        @keydown.enter.prevent="addTag"
+      />
+    </div>
+    <div v-else-if="tags.length" class="mb-4 flex flex-wrap items-center gap-2">
+      <RouterLink
+        v-for="t in tags"
+        :key="t"
+        :to="`/browse?tag=${encodeURIComponent(t)}`"
+        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+      >
+        <TagIcon class="size-3" />
+        {{ t }}
+      </RouterLink>
     </div>
 
     <Separator class="my-4" />

@@ -22,6 +22,7 @@ public class VideoClipDto
     public bool Unlisted { get; set; }
     public int Progress { get; set; }
     public string? Status { get; set; }
+    public List<string> Tags { get; set; } = [];
 
     // Add a static method to map from entity to DTO
     public static VideoClipDto FromEntity(
@@ -48,7 +49,8 @@ public class VideoClipDto
             Author = entity.User?.Username ?? "",
             Unlisted = entity.Unlisted,
             Progress = latestJob?.Progress ?? 0,
-            Status = latestJob?.Status ?? "Pending"
+            Status = latestJob?.Status ?? "Pending",
+            Tags = entity.Tags
         };
     }
 }

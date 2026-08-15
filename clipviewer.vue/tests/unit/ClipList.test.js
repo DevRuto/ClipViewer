@@ -67,6 +67,26 @@ describe('ClipList', () => {
     expect(api.get).toHaveBeenCalledWith('/api/videos')
   })
 
+  it('fetches videos filtered by tag and re-fetches when the tag changes', async () => {
+    api.get.mockResolvedValueOnce({ data: sampleVideos })
+    const router = makeRouter()
+    const wrapper = mount(ClipList, {
+      props: { username: null, tag: null },
+      global: { plugins: [router] },
+    })
+
+    await wrapper.setProps({ tag: 'funny' })
+    await flushPromises()
+
+    expect(api.get).toHaveBeenCalledWith('/api/videos?tag=funny')
+
+    api.get.mockResolvedValueOnce({ data: sampleVideos })
+    await wrapper.setProps({ username: 'alice' })
+    await flushPromises()
+
+    expect(api.get).toHaveBeenCalledWith('/api/videos?user=alice&tag=funny')
+  })
+
   it('shows an error message instead of the empty state when the fetch fails', async () => {
     api.get.mockRejectedValueOnce({ response: { data: { message: 'Server exploded' } } })
     const router = makeRouter()
