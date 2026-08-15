@@ -21,6 +21,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(e => e.Username).IsUnique();
             entity.Property(e => e.ApiKey).IsRequired();
             entity.HasIndex(e => e.ApiKey).IsUnique();
+            entity.Property(e => e.Role).IsRequired().HasConversion<string>().HasMaxLength(20)
+                .HasDefaultValue(UserRole.User);
             entity.Property(e => e.CreatedAt).IsRequired();
         });
 

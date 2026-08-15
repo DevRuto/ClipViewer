@@ -40,11 +40,17 @@ const router = createRouter({
       component: () => import('../views/VideoView.vue'),
       meta: { title: 'Video - ClipViewer' },
     },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: () => import('../views/UsersView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true, title: 'Manage Users - ClipViewer' },
+    },
   ],
 })
 
 router.beforeEach(async (to, from, next) => {
-  const { checkAuth, isAuthenticated, user } = useAuth()
+  const { checkAuth, isAuthenticated, isAdmin, user } = useAuth()
 
   // Update document title
   if (to.meta.title) {
@@ -60,6 +66,11 @@ router.beforeEach(async (to, from, next) => {
         next('/login')
         return
       }
+    }
+
+    if (to.meta.requiresAdmin && !isAdmin.value) {
+      next('/')
+      return
     }
   }
 

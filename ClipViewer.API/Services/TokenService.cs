@@ -22,7 +22,8 @@ public class TokenService(IOptions<JwtSettings> jwtSettings) : ITokenService
         {
             Subject = new ClaimsIdentity([
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username)
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role.ToString())
             ]),
             Expires = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationInMinutes),
             Issuer = _jwtSettings.Issuer,

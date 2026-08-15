@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ClipViewer.API.Interfaces;
 using ClipViewer.API.Models.Auth;
 using ClipViewer.API.Services;
+using ClipViewer.Data.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,10 +32,11 @@ public class AuthController(IAuthService authService, ITokenService tokenService
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var username = User.FindFirst(ClaimTypes.Name)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value ?? nameof(UserRole.User);
 
         if (userId == null || username == null)
             return Unauthorized();
 
-        return Ok(new { UserId = userId, Username = username });
+        return Ok(new { UserId = userId, Username = username, Role = role });
     }
 }

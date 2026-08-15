@@ -7,6 +7,7 @@ const apiKey = ref(localStorage.getItem('apiKey') || '')
 
 export const useAuth = () => {
   const isAuthenticated = computed(() => !!user.value)
+  const isAdmin = computed(() => user.value?.role === 'Admin')
 
   const login = async (key) => {
     try {
@@ -69,6 +70,7 @@ export const useAuth = () => {
     token: readonly(token),
     apiKey: readonly(apiKey),
     isAuthenticated,
+    isAdmin,
     login,
     logout,
     checkAuth,

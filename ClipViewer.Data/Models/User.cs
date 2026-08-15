@@ -2,6 +2,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ClipViewer.Data.Models;
 
+public enum UserRole
+{
+    User,
+    Admin
+}
+
 public class User
 {
     public int Id { get; set; }
@@ -12,6 +18,8 @@ public class User
 
     [Required]
     public Guid ApiKey { get; set; } = Guid.Empty;
+
+    public UserRole Role { get; set; } = UserRole.User;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

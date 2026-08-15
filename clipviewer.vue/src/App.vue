@@ -1,6 +1,6 @@
 <script setup>
 import { RouterLink, RouterView } from 'vue-router'
-import { Menu, LogOut, UserRound } from '@lucide/vue'
+import { Menu, LogOut, UserRound, Users } from '@lucide/vue'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 import ThemeCustomizer from '@/components/ThemeCustomizer.vue'
 import GithubIcon from '@/components/icons/GithubIcon.vue'
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
-const { user, isAuthenticated, logout, checkAuth } = useAuth()
+const { user, isAuthenticated, isAdmin, logout, checkAuth } = useAuth()
 const isMenuOpen = ref(false)
 
 onMounted(() => {
@@ -72,6 +72,13 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>{{ user?.username }}</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem v-if="isAdmin" as-child>
+                <RouterLink to="/admin/users">
+                  <Users class="size-4" />
+                  Manage Users
+                </RouterLink>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator v-if="isAdmin" />
               <DropdownMenuItem variant="destructive" @click="logout">
                 <LogOut class="size-4" />
                 Sign Out
@@ -123,6 +130,11 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
                 <template v-if="isAuthenticated">
                   <Separator class="my-2" />
                   <p class="px-4 py-1 text-sm text-muted-foreground">{{ user?.username }}</p>
+                  <SheetClose v-if="isAdmin" as-child>
+                    <RouterLink to="/admin/users" :class="navLinkClass" active-class="text-primary bg-accent">
+                      Manage Users
+                    </RouterLink>
+                  </SheetClose>
                   <SheetClose as-child>
                     <Button variant="ghost" class="justify-start text-destructive" @click="logout">
                       <LogOut class="size-4" />
