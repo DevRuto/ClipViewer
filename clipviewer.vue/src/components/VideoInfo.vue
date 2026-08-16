@@ -50,18 +50,38 @@ import {
 const MAX_TAGS = 15
 const MAX_TAG_LENGTH = 30
 
-let copiedTimeoutId = null
+let toastTimeoutId = null
+let copiedIconTimeoutId = null
 
 onUnmounted(() => {
-  clearTimeout(copiedTimeoutId)
+  clearTimeout(toastTimeoutId)
+  clearTimeout(copiedIconTimeoutId)
 })
 
 const props = defineProps(['video', 'videoPlayer', 'saving', 'saveError'])
 const emit = defineEmits(['update-video', 'delete-video', 'refresh-video', 'retry-video'])
 
-const includeTimestamp = ref(false)
 const currentTime = ref(0)
-const justCopied = ref(false)
+const toastMessage = ref('')
+// Drives a brief icon-swap animation on whichever of the two copy buttons was clicked, on top
+// of the toast.
+const copiedVariant = ref(null)
+
+function showToast(message) {
+  toastMessage.value = message
+  clearTimeout(toastTimeoutId)
+  toastTimeoutId = setTimeout(() => {
+    toastMessage.value = ''
+  }, 2000)
+}
+
+function flashCopiedIcon(variant) {
+  copiedVariant.value = variant
+  clearTimeout(copiedIconTimeoutId)
+  copiedIconTimeoutId = setTimeout(() => {
+    copiedVariant.value = null
+  }, 1200)
+}
 
 const { user } = useAuth()
 const { stringToColor, getContrastColor } = useAuthorColor()
@@ -209,10 +229,10 @@ const downloadFilename = computed(() => {
   return ext && !baseName.toLowerCase().endsWith(ext.toLowerCase()) ? `${baseName}${ext}` : baseName
 })
 
-async function copyLink() {
+async function copyLink(withTimestamp) {
   const url = new URL(window.location.href)
 
-  if (includeTimestamp.value) {
+  if (withTimestamp) {
     url.searchParams.set('t', currentTime.value)
   } else {
     url.searchParams.delete('t')
@@ -220,11 +240,8 @@ async function copyLink() {
 
   try {
     await navigator.clipboard.writeText(url.toString())
-    justCopied.value = true
-    clearTimeout(copiedTimeoutId)
-    copiedTimeoutId = setTimeout(() => {
-      justCopied.value = false
-    }, 2000)
+    showToast(withTimestamp ? `Link copied at ${formatDuration(currentTime.value)}` : 'Link copied')
+    flashCopiedIcon(withTimestamp ? 'time' : 'plain')
   } catch (err) {
     console.error('Failed to copy link:', err)
   }
@@ -431,23 +448,50 @@ watch(
 
       <div class="flex-1 min-w-2"></div>
 
-      <!-- Bare for now - no room for the "With timestamp" label in the compact strip -->
-      <Switch
-        v-model="includeTimestamp"
-        class="shrink-0"
-        title="Include current timestamp when copying link"
-        aria-label="Include current timestamp when copying link"
-      />
-
+      <!-- Two direct-action copy buttons instead of a toggle - no hidden state to track, and the
+           timestamp button shows the actual value that would be copied. Each also briefly flips
+           to a check icon on click, on top of the toast below. -->
       <Button
         variant="secondary"
         size="icon"
         class="size-10 sm:size-8 shrink-0"
-        :title="justCopied ? 'Copied!' : 'Copy Link'"
-        @click="copyLink"
+        title="Copy Link"
+        @click="copyLink(false)"
       >
-        <Check v-if="justCopied" class="size-4" />
-        <LinkIcon v-else class="size-4" />
+        <Transition
+          mode="out-in"
+          enter-active-class="transition duration-150 ease-out"
+          enter-from-class="opacity-0 scale-50"
+          enter-to-class="opacity-100 scale-100"
+          leave-active-class="transition duration-100 ease-in"
+          leave-from-class="opacity-100 scale-100"
+          leave-to-class="opacity-0 scale-50"
+        >
+          <Check v-if="copiedVariant === 'plain'" key="check" class="size-4" />
+          <LinkIcon v-else key="link" class="size-4" />
+        </Transition>
+      </Button>
+
+      <Button
+        variant="outline"
+        size="sm"
+        class="h-10 sm:h-8 rounded-full gap-1.5 px-2.5 shrink-0"
+        :title="`Copy Link at ${formatDuration(currentTime)}`"
+        @click="copyLink(true)"
+      >
+        <Transition
+          mode="out-in"
+          enter-active-class="transition duration-150 ease-out"
+          enter-from-class="opacity-0 scale-50"
+          enter-to-class="opacity-100 scale-100"
+          leave-active-class="transition duration-100 ease-in"
+          leave-from-class="opacity-100 scale-100"
+          leave-to-class="opacity-0 scale-50"
+        >
+          <Check v-if="copiedVariant === 'time'" key="check" class="size-3.5" />
+          <LinkIcon v-else key="link" class="size-3.5" />
+        </Transition>
+        {{ formatDuration(currentTime) }}
       </Button>
 
       <a
@@ -477,5 +521,24 @@ watch(
         {{ descExpanded ? 'Show less' : 'Show more' }}
       </button>
     </div>
+
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-2"
+    >
+      <div
+        v-if="toastMessage"
+        role="status"
+        aria-live="polite"
+        class="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg"
+      >
+        <Check class="size-4" />
+        {{ toastMessage }}
+      </div>
+    </Transition>
   </div>
 </template>

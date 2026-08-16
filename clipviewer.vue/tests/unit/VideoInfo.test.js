@@ -121,7 +121,7 @@ describe('VideoInfo', () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(window.location.href)
   })
 
-  it('includes a timestamp in the copied link when the timestamp toggle is enabled', async () => {
+  it('includes a timestamp in the copied link when the "Copy Link at ..." button is clicked', async () => {
     // `currentTime` is only picked up via a watcher on `videoPlayer.currentTime`,
     // so the prop needs to be reactive and actually change after mount to fire it.
     const videoPlayer = reactive({ currentTime: 0 })
@@ -130,11 +130,8 @@ describe('VideoInfo', () => {
     videoPlayer.currentTime = 42
     await wrapper.vm.$nextTick()
 
-    const timestampSwitch = wrapper.find('[role="switch"]')
-    await timestampSwitch.trigger('click')
-
-    const copyButton = wrapper.find('button[title="Copy Link"]')
-    await copyButton.trigger('click')
+    const copyAtTimeButton = wrapper.find('button[title="Copy Link at 0:42"]')
+    await copyAtTimeButton.trigger('click')
 
     const copiedUrl = navigator.clipboard.writeText.mock.calls[0][0]
     expect(copiedUrl).toContain('t=42')
@@ -205,9 +202,7 @@ describe('VideoInfo', () => {
     const body = new DOMWrapper(document.body)
 
     await openEditModal(wrapper)
-    // Scoped to the dialog content - the meta strip behind it has its own, unrelated switch
-    // (the "include timestamp" toggle) that would otherwise be matched first.
-    const unlistedSwitch = body.find('[data-slot="dialog-content"] [role="switch"]')
+    const unlistedSwitch = body.find('[role="switch"]')
     await unlistedSwitch.trigger('click')
     const saveButton = findByText(body, 'button', 'Save')
     await saveButton.trigger('click')
@@ -262,14 +257,14 @@ describe('VideoInfo', () => {
     expect(body.find('input[placeholder="Video title"]').element.value).toBe('My Clip')
   })
 
-  it('shows a temporary "Copied!" confirmation after copying the link', async () => {
+  it('shows a toast confirming the link was copied', async () => {
     const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
     const copyButton = wrapper.find('button[title="Copy Link"]')
     await copyButton.trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(copyButton.attributes('title')).toBe('Copied!')
+    expect(wrapper.find('[role="status"]').text()).toBe('Link copied')
   })
 
   it('adds a tag to the draft and emits it on Save', async () => {
