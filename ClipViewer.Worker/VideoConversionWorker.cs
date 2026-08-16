@@ -294,21 +294,30 @@ public partial class VideoConversionWorker(
         var spriteInfo = await FFmpeg.GetMediaInfo(spriteFile, stoppingToken);
         var spriteStream = spriteInfo.VideoStreams.First();
 
+        // Just the bare filename, not a path - the manifest is fetched directly as a static file
+        // (bypassing the API's DTO layer that prefixes UploadOptions:PublicFilePath onto ScrubSprite
+        // itself), so the frontend resolves this relative to the manifest's own URL instead.
         var manifest = new ScrubSpriteManifest(
-            $"/thumbnails/{videoId}-sprite.jpg",
+            $"{videoId}-sprite.jpg",
             interval,
             spriteStream.Width / columns,
             spriteStream.Height / rows,
             columns,
             count);
 
-        await File.WriteAllTextAsync(manifestFile, JsonSerializer.Serialize(manifest), stoppingToken);
+        await File.WriteAllTextAsync(
+            manifestFile, JsonSerializer.Serialize(manifest, ScrubSpriteJsonOptions), stoppingToken);
 
         return $"/thumbnails/{videoId}-sprite.json";
     }
 
     private record ScrubSpriteManifest(
         string Image, int Interval, int TileWidth, int TileHeight, int Columns, int Count);
+
+    // The manifest is served as a static file and read directly by the frontend (not through ASP.NET's
+    // MVC pipeline, which camelCases by default), so it needs its own naming policy to match.
+    private static readonly JsonSerializerOptions ScrubSpriteJsonOptions =
+        new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     private static async Task TrimVideo(
         string videoFilePath, string destinationFile, int startTime = 0, int? endTime = null)

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { formatDuration } from '@/composables/useDuration.js'
 
 const props = defineProps({
@@ -15,6 +15,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  scrubSprite: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['seek', 'scrub-start', 'scrub-end'])
@@ -22,10 +26,53 @@ const emit = defineEmits(['seek', 'scrub-start', 'scrub-end'])
 const track = ref(null)
 const isDragging = ref(false)
 const hoverRatio = ref(null)
+const spriteManifest = ref(null)
 
 const progressRatio = computed(() => (props.duration > 0 ? clampRatio(props.currentTime / props.duration) : 0))
 const bufferedRatio = computed(() => (props.duration > 0 ? clampRatio(props.bufferedEnd / props.duration) : 0))
 const hoverTime = computed(() => (hoverRatio.value === null ? null : hoverRatio.value * props.duration))
+
+// Fetches the sprite's JSON manifest (see Worker's GenerateScrubSprite) once per video. A stale
+// in-flight fetch for a previous scrubSprite URL is dropped if the prop changes again before it
+// resolves, and any failure (including clips that don't have a sprite yet) just leaves the
+// preview thumbnail off - the time-only tooltip below still works either way.
+watch(
+  () => props.scrubSprite,
+  async (url) => {
+    spriteManifest.value = null
+    if (!url) return
+    try {
+      const response = await fetch(url)
+      if (!response.ok) return
+      const manifest = await response.json()
+      if (props.scrubSprite === url) spriteManifest.value = manifest
+    } catch {
+      /* no scrubbing preview available for this clip */
+    }
+  },
+  { immediate: true },
+)
+
+const previewTileStyle = computed(() => {
+  const manifest = spriteManifest.value
+  if (!manifest || hoverTime.value === null) return null
+
+  const index = Math.min(manifest.count - 1, Math.max(0, Math.floor(hoverTime.value / manifest.interval)))
+  const col = index % manifest.columns
+  const row = Math.floor(index / manifest.columns)
+  const rows = Math.ceil(manifest.count / manifest.columns)
+  // The manifest's `image` is a bare filename, colocated with the manifest itself - resolve it
+  // against the manifest's own URL rather than assuming any particular public-file prefix.
+  const imageUrl = props.scrubSprite.slice(0, props.scrubSprite.lastIndexOf('/') + 1) + manifest.image
+
+  return {
+    width: `${manifest.tileWidth}px`,
+    height: `${manifest.tileHeight}px`,
+    backgroundImage: `url(${imageUrl})`,
+    backgroundSize: `${manifest.columns * manifest.tileWidth}px ${rows * manifest.tileHeight}px`,
+    backgroundPosition: `-${col * manifest.tileWidth}px -${row * manifest.tileHeight}px`,
+  }
+})
 
 function clampRatio(ratio) {
   return Math.min(1, Math.max(0, ratio))
@@ -80,10 +127,17 @@ function onPointerLeave() {
   >
     <div
       v-if="hoverTime !== null"
-      class="pointer-events-none absolute bottom-full mb-2 -translate-x-1/2 rounded bg-black/90 px-1.5 py-0.5 text-xs whitespace-nowrap text-white"
+      class="pointer-events-none absolute bottom-full mb-2 flex -translate-x-1/2 flex-col items-center gap-1"
       :style="{ left: `${hoverRatio * 100}%` }"
     >
-      {{ formatDuration(hoverTime) }}
+      <div
+        v-if="previewTileStyle"
+        class="overflow-hidden rounded border border-white/20 bg-black shadow-lg"
+        :style="previewTileStyle"
+      ></div>
+      <div class="rounded bg-black/90 px-1.5 py-0.5 text-xs whitespace-nowrap text-white">
+        {{ formatDuration(hoverTime) }}
+      </div>
     </div>
 
     <div class="relative h-1 w-full rounded-full bg-white/25 transition-[height] group-hover/seek:h-1.5">

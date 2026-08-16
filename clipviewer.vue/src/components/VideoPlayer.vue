@@ -34,6 +34,10 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  scrubSprite: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['loaded'])
@@ -368,6 +372,7 @@ function onKeydown(event) {
             :current-time="currentTime"
             :duration="duration"
             :buffered-end="bufferedEnd"
+            :scrub-sprite="scrubSprite"
             @seek="seekTo"
             @scrub-start="holdControls"
             @scrub-end="scheduleHide"

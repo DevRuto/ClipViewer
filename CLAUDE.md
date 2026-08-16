@@ -79,6 +79,13 @@ column. Clips processed before that column existed need a one-off backfill:
 dotnet run --project ClipViewer.Worker -- --backfill-sizes
 ```
 
+Similarly, `VideoClip.ScrubSprite` (a tiled sprite image + JSON manifest for scrubbing-preview
+thumbnails, generated as a best-effort trailing step after HLS conversion — see
+`GenerateScrubSprite`/`ProcessAsync`) is backfilled for clips processed before it existed with:
+```sh
+dotnet run --project ClipViewer.Worker -- --backfill-sprites
+```
+
 ### Frontend (`clipviewer.vue/`)
 ```sh
 npm install
@@ -99,8 +106,8 @@ Serves the app at http://localhost:5000; Postgres on 5432. `./output`, `./logs`,
 bind-mounted so API and Worker share the same media files. `scripts/create_user.sh` /
 `scripts/update_user.sh` connect to the compose Postgres container to provision/rotate a user's API key.
 `scripts/backup_db.sh` dumps the compose Postgres database to `db_backup/`. One-off Worker commands
-(e.g. the `VideoClip.SizeBytes` backfill below) run as a throwaway container sharing the same service
-config instead of exec-ing into the long-running one: `docker compose run --rm worker --backfill-sizes`.
+(e.g. the `VideoClip.SizeBytes`/`ScrubSprite` backfills above) run as a throwaway container sharing the
+same service config instead of exec-ing into the long-running one: `docker compose run --rm worker --backfill-sizes`.
 
 ## Notes
 
