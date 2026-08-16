@@ -118,29 +118,42 @@ onBeforeUnmount(() => {
   clearTimeout(seekFlashTimer)
 })
 
-function onVideoClick() {
+// Toggles play/pause immediately and returns an undo that reverts just that toggle - used so an
+// edge-zone tap/click can apply optimistically and still be cleanly reversed if a second one
+// confirms it was actually a double-tap/double-click seek (see resolveZoneGesture).
+function toggleSingleClick() {
   togglePlay()
   showControls()
+  return () => togglePlay()
+}
+
+function onVideoClick() {
+  toggleSingleClick()
 }
 
 // Mirrors the touch double-tap-edge-seek gesture below for mouse users: a click on the
-// left/right edge is held for DOUBLE_TAP_WINDOW to see if a second click lands in the same zone
-// before committing to a plain toggle, so a double-click purely seeks without also flipping
-// playback state along the way. Unlike touch (resolveSingleTap), a lone desktop click always
-// toggles play/pause unconditionally - mouse users don't have the mobile "big play button is
-// the only thing that resumes playback" ambiguity, so there's no need to special-case paused.
+// left/right edge applies its toggle immediately (see toggleSingleClick) but is reverted if a
+// second click lands in the same zone within DOUBLE_TAP_WINDOW, so a double-click purely seeks
+// without leaving playback state flipped. Unlike touch (resolveSingleTap), a lone desktop click
+// always toggles play/pause unconditionally - mouse users don't have the mobile "big play button
+// is the only thing that resumes playback" ambiguity, so there's no need to special-case paused.
 function onVideoElementClick(event) {
-  resolveZoneGesture(zoneForX(event.clientX, event.currentTarget.getBoundingClientRect()), onVideoClick)
+  resolveZoneGesture(zoneForX(event.clientX, event.currentTarget.getBoundingClientRect()), toggleSingleClick)
 }
 
 // While playing, a tap that isn't a confirmed edge double-tap pauses (same as onVideoClick).
 // While paused, the big play button is the only thing that resumes playback - a tap anywhere
 // else on the player just toggles the controls overlay instead of also restarting playback.
+// Returns an undo matching whichever branch it took, for the same optimistic-apply-then-revert
+// reason as toggleSingleClick.
 function resolveSingleTap() {
   if (isPlaying.value) {
-    onVideoClick()
-  } else {
-    controlsVisible.value = !controlsVisible.value
+    return toggleSingleClick()
+  }
+  const wasVisible = controlsVisible.value
+  controlsVisible.value = !wasVisible
+  return () => {
+    controlsVisible.value = wasVisible
   }
 }
 
@@ -152,14 +165,19 @@ let touchStartY = 0
 let touchStartTime = 0
 let tapTimer = null
 let pendingTapZone = null
+let pendingUndo = null
 const seekFlash = ref(null)
 const seekFlashKey = ref(0)
 let seekFlashTimer = null
 
+// Clears the pending-second-tap window without undoing anything - the first tap's action (if
+// edge-zone) was already applied optimistically and stays committed unless a confirmed double
+// follows (see resolveZoneGesture).
 function clearTapTimer() {
   clearTimeout(tapTimer)
   tapTimer = null
   pendingTapZone = null
+  pendingUndo = null
 }
 
 function flashSeek(direction) {
@@ -179,31 +197,38 @@ function zoneForX(clientX, rect) {
   return 'center'
 }
 
-// Shared by the touch and mouse gesture handlers: resolves a confirmed tap/click in `zone`,
-// treating it as the second half of a double-tap/double-click if one is already pending in the
-// same zone (seeking instead of resolving as a plain tap/click), otherwise holding it for
-// DOUBLE_TAP_WINDOW in case a second one follows. `resolveSingle` is what a lone (non-edge, or
-// timed-out) tap/click resolves to - touch and mouse each pass their own since they differ when
-// paused (see callers).
+// Shared by the touch and mouse gesture handlers: only the left/right edge zones have a
+// double-tap/double-click gesture (10s seek). A center zone gesture has nothing to disambiguate,
+// so it resolves immediately. An edge zone gesture also resolves immediately (optimistically) -
+// `resolveSingle` applies its toggle right away and returns an undo - but stays pending for
+// DOUBLE_TAP_WINDOW in case a second tap/click lands in the same zone, in which case the toggle
+// is reverted and replaced with a seek. This way a plain click/tap never lags, and only a real
+// double confirmation costs a brief (<300ms) play/pause flicker. `resolveSingle` differs between
+// touch and mouse since they differ when paused (see callers).
 function resolveZoneGesture(zone, resolveSingle) {
-  if (tapTimer && zone === pendingTapZone) {
+  if (zone === 'center') {
     clearTapTimer()
-    if (zone === 'center') {
-      resolveSingle()
-    } else {
-      seekBy(zone === 'left' ? -SEEK_STEP_LARGE : SEEK_STEP_LARGE)
-      flashSeek(zone === 'left' ? 'back' : 'forward')
-      showControls()
-    }
+    resolveSingle()
+    return
+  }
+
+  if (tapTimer && zone === pendingTapZone) {
+    const undo = pendingUndo
+    clearTapTimer()
+    undo?.()
+    seekBy(zone === 'left' ? -SEEK_STEP_LARGE : SEEK_STEP_LARGE)
+    flashSeek(zone === 'left' ? 'back' : 'forward')
+    showControls()
     return
   }
 
   clearTapTimer()
   pendingTapZone = zone
+  pendingUndo = resolveSingle()
   tapTimer = setTimeout(() => {
     tapTimer = null
     pendingTapZone = null
-    resolveSingle()
+    pendingUndo = null
   }, DOUBLE_TAP_WINDOW)
 }
 

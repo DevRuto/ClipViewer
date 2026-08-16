@@ -46,18 +46,48 @@ describe('VideoPlayer', () => {
     expect(wrapper.vm.currentTime).toBe(42)
   })
 
-  it('toggles play/pause when the video is clicked', async () => {
-    vi.useFakeTimers()
+  it('toggles play/pause immediately when the video is clicked', async () => {
     const wrapper = mount(VideoPlayer, { props: { src: '/files/source/clip.mp4' } })
     markLoaded(wrapper)
     await wrapper.vm.$nextTick()
 
-    // A click is held for the double-tap/double-click window (see resolveZoneGesture in
-    // VideoPlayer.vue) before it commits to a play/pause toggle, in case a second click follows.
+    // Center clicks have no double-click gesture to disambiguate (that's only the left/right
+    // edge zones - see resolveZoneGesture in VideoPlayer.vue), so they toggle without delay.
     await wrapper.find('video').trigger('click')
-    await vi.advanceTimersByTimeAsync(300)
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1)
-    vi.useRealTimers()
+  })
+
+  it('applies edge-zone clicks immediately, and undoes them if a second click confirms a seek', async () => {
+    let paused = true
+    HTMLMediaElement.prototype.play = vi.fn(function () {
+      paused = false
+      return Promise.resolve()
+    })
+    HTMLMediaElement.prototype.pause = vi.fn(function () {
+      paused = true
+    })
+
+    const wrapper = mount(VideoPlayer, { props: { src: '/files/source/clip.mp4' } })
+    markLoaded(wrapper)
+    await wrapper.vm.$nextTick()
+
+    const video = wrapper.find('video').element
+    Object.defineProperty(video, 'paused', { get: () => paused, configurable: true })
+    video.getBoundingClientRect = () => ({ left: 0, width: 300 })
+    video.currentTime = 20
+
+    // A click near the left edge toggles play immediately - it doesn't wait to see if a second
+    // click follows (see resolveZoneGesture/toggleSingleClick in VideoPlayer.vue).
+    await wrapper.find('video').trigger('click', { clientX: 10 })
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1)
+    expect(paused).toBe(false)
+
+    // A second click in the same edge zone within the window confirms a double-click: the toggle
+    // is undone (paused again) and a 10s seek happens instead.
+    await wrapper.find('video').trigger('click', { clientX: 10 })
+    expect(HTMLMediaElement.prototype.pause).toHaveBeenCalledTimes(1)
+    expect(paused).toBe(true)
+    expect(video.currentTime).toBe(10)
   })
 
   it('responds to space/arrow-key shortcuts on the player', async () => {
