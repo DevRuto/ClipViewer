@@ -44,6 +44,12 @@ function findByText(wrapper, selector, text) {
     .find((el) => (text instanceof RegExp ? text.test(el.text().trim()) : el.text().trim() === text))
 }
 
+// The edit modal's content is teleported to document.body (same as AlertDialog), so any mount
+// that opens it needs attachTo: document.body plus a DOMWrapper around document.body to query it.
+async function openEditModal(wrapper) {
+  await wrapper.find('[aria-label="Edit video details"]').trigger('click')
+}
+
 describe('VideoInfo', () => {
   beforeEach(() => {
     mockUser.value = null
@@ -52,13 +58,17 @@ describe('VideoInfo', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    // Dialog/AlertDialog content is teleported straight to document.body rather than into the
+    // mounted wrapper's own element, so tests using `attachTo: document.body` would otherwise
+    // leak stale teleported nodes (and stale "Save"/tag-chip elements) into the next test.
+    document.body.innerHTML = ''
   })
 
   it('does not show owner-only edit controls for a non-owner', () => {
     mockUser.value = { username: 'someone-else' }
     const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
-    expect(wrapper.find('.mb-4.space-y-3').exists()).toBe(false)
+    expect(wrapper.find('[aria-label="Edit video details"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('My Clip')
   })
 
@@ -66,7 +76,7 @@ describe('VideoInfo', () => {
     mockUser.value = { username: 'alice' }
     const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
 
-    expect(wrapper.find('.mb-4.space-y-3').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Edit video details"]').exists()).toBe(true)
   })
 
   it('shows a processing indicator with clamped progress while pending', () => {
@@ -132,23 +142,26 @@ describe('VideoInfo', () => {
 
   it('opens a confirmation modal before deleting and only emits delete-video on confirm', async () => {
     mockUser.value = { username: 'alice' }
-    // AlertDialog content is teleported to document.body, outside the mounted wrapper's own
-    // element tree, so it has to be queried via a DOMWrapper around document.body instead of
-    // `wrapper.find()`/`wrapper.text()`.
+    // Both the edit Dialog and the nested delete AlertDialog are teleported to document.body,
+    // outside the mounted wrapper's own element tree, so they're queried via a DOMWrapper
+    // around document.body instead of `wrapper.find()`/`wrapper.text()`.
     const wrapper = mountVideoInfo({
       props: { video: baseVideo, videoPlayer: null },
       attachTo: document.body,
     })
     const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click') // open edit mode
-    const deleteButton = findByText(wrapper, 'button', 'Delete Video')
+    await openEditModal(wrapper)
+    const deleteButton = findByText(body, 'button', 'Delete Video')
     await deleteButton.trigger('click')
 
     expect(body.text()).toContain('Are you sure you want to delete "My Clip"?')
     expect(wrapper.emitted('delete-video')).toBeFalsy()
 
-    const cancelButton = findByText(body, 'button', 'Cancel')
+    // Scoped to the confirmation dialog specifically - the edit modal behind it has its own,
+    // unrelated "Cancel" button visible at the same time.
+    const confirmDialog = body.find('[data-slot="alert-dialog-content"]')
+    const cancelButton = findByText(confirmDialog, 'button', 'Cancel')
     await cancelButton.trigger('click')
     expect(wrapper.emitted('delete-video')).toBeFalsy()
     expect(body.text()).not.toContain('Are you sure you want to delete "My Clip"?')
@@ -161,31 +174,43 @@ describe('VideoInfo', () => {
     expect(wrapper.emitted('delete-video')[0]).toEqual([baseVideo])
   })
 
-  it('debounces name edits before emitting update-video', async () => {
-    vi.useFakeTimers()
+  it('stages edits in the modal and only emits update-video once, on Save', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const titleInput = wrapper.find('input[placeholder="Video title"]')
+    await openEditModal(wrapper)
+    const titleInput = body.find('input[placeholder="Video title"]')
     await titleInput.setValue('New Title')
 
     expect(wrapper.emitted('update-video')).toBeFalsy()
 
-    await vi.advanceTimersByTimeAsync(500)
+    const saveButton = findByText(body, 'button', 'Save')
+    await saveButton.trigger('click')
 
     expect(wrapper.emitted('update-video')).toBeTruthy()
     const lastEmit = wrapper.emitted('update-video').at(-1)[0]
     expect(lastEmit.name).toBe('New Title')
   })
 
-  it('emits update-video immediately when the unlisted toggle changes', async () => {
+  it('emits update-video with the toggled unlisted value on Save', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const unlistedSwitch = wrapper.find('.mb-4.space-y-3 [role="switch"]')
+    await openEditModal(wrapper)
+    // Scoped to the dialog content - the meta strip behind it has its own, unrelated switch
+    // (the "include timestamp" toggle) that would otherwise be matched first.
+    const unlistedSwitch = body.find('[data-slot="dialog-content"] [role="switch"]')
     await unlistedSwitch.trigger('click')
+    const saveButton = findByText(body, 'button', 'Save')
+    await saveButton.trigger('click')
 
     const lastEmit = wrapper.emitted('update-video').at(-1)[0]
     expect(lastEmit.unlisted).toBe(true)
@@ -198,30 +223,43 @@ describe('VideoInfo', () => {
     expect(wrapper.text()).toContain('Unlisted')
   })
 
-  it('reverts an emptied title back to the last saved value on blur', async () => {
+  it('disables Save while the title is blank', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const titleInput = wrapper.find('input[placeholder="Video title"]')
+    await openEditModal(wrapper)
+    const titleInput = body.find('input[placeholder="Video title"]')
     await titleInput.setValue('   ')
-    await titleInput.trigger('blur')
 
-    expect(titleInput.element.value).toBe('My Clip')
+    const saveButton = findByText(body, 'button', 'Save')
+    expect(saveButton.attributes('disabled')).not.toBeUndefined()
   })
 
-  it('reverts unsaved title edits when Escape is pressed', async () => {
-    vi.useFakeTimers()
+  it('discards unsaved edits when Cancel is clicked', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const titleInput = wrapper.find('input[placeholder="Video title"]')
+    await openEditModal(wrapper)
+    const titleInput = body.find('input[placeholder="Video title"]')
     await titleInput.setValue('Discard Me')
-    await titleInput.trigger('keydown', { key: 'Escape' })
 
-    expect(wrapper.find('h1').text()).toBe('My Clip')
+    const cancelButton = findByText(body, 'button', 'Cancel')
+    await cancelButton.trigger('click')
+
     expect(wrapper.emitted('update-video')).toBeFalsy()
+    expect(wrapper.find('h1').text()).toBe('My Clip')
+
+    // Reopening should show the original value again, not the discarded edit
+    await openEditModal(wrapper)
+    expect(body.find('input[placeholder="Video title"]').element.value).toBe('My Clip')
   })
 
   it('shows a temporary "Copied!" confirmation after copying the link', async () => {
@@ -234,53 +272,73 @@ describe('VideoInfo', () => {
     expect(copyButton.attributes('title')).toBe('Copied!')
   })
 
-  it('adds a tag and emits update-video immediately', async () => {
+  it('adds a tag to the draft and emits it on Save', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const tagInput = wrapper.find('input[placeholder="Add a tag..."]')
+    await openEditModal(wrapper)
+    const tagInput = body.find('input[placeholder="Add a tag..."]')
     await tagInput.setValue('funny')
     await tagInput.trigger('keydown.enter')
 
+    expect(tagInput.element.value).toBe('')
+
+    const saveButton = findByText(body, 'button', 'Save')
+    await saveButton.trigger('click')
+
     const lastEmit = wrapper.emitted('update-video').at(-1)[0]
     expect(lastEmit.tags).toEqual(['funny'])
-    expect(tagInput.element.value).toBe('')
   })
 
   it('does not add a duplicate tag (case-insensitive)', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({ props: { video: { ...baseVideo, tags: ['Funny'] }, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: { ...baseVideo, tags: ['Funny'] }, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const tagInput = wrapper.find('input[placeholder="Add a tag..."]')
+    await openEditModal(wrapper)
+    const tagInput = body.find('input[placeholder="Add a tag..."]')
     await tagInput.setValue('funny')
     await tagInput.trigger('keydown.enter')
 
-    expect(wrapper.emitted('update-video')).toBeFalsy()
+    expect(body.findAll('[data-testid="tag-chip"]').length).toBe(1)
   })
 
   it('rejects a tag longer than 30 characters', async () => {
     mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({ props: { video: baseVideo, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const tagInput = wrapper.find('input[placeholder="Add a tag..."]')
+    await openEditModal(wrapper)
+    const tagInput = body.find('input[placeholder="Add a tag..."]')
     await tagInput.setValue('a'.repeat(31))
     await tagInput.trigger('keydown.enter')
 
-    expect(wrapper.emitted('update-video')).toBeFalsy()
+    expect(body.findAll('[data-testid="tag-chip"]').length).toBe(0)
   })
 
-  it('removes a tag and emits update-video', async () => {
+  it('removes a tag from the draft and emits the change on Save', async () => {
     mockUser.value = { username: 'alice' }
     const wrapper = mountVideoInfo({
-      props: { video: { ...baseVideo, tags: ['funny', 'gaming'] }, videoPlayer: null },
+      props: { video: { ...baseVideo, tags: ['funny', 'gaming'] }, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
     })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
-    const removeButton = findByText(wrapper, 'span', /funny/)?.find('button')
+    await openEditModal(wrapper)
+    const removeButton = findByText(body, '[data-testid="tag-chip"]', /funny/)?.find('button')
     await removeButton.trigger('click')
+    const saveButton = findByText(body, 'button', 'Save')
+    await saveButton.trigger('click')
 
     const lastEmit = wrapper.emitted('update-video').at(-1)[0]
     expect(lastEmit.tags).toEqual(['gaming'])
@@ -289,11 +347,15 @@ describe('VideoInfo', () => {
   it('hides the tag input once the maximum of 15 tags is reached', async () => {
     mockUser.value = { username: 'alice' }
     const tags = Array.from({ length: 15 }, (_, i) => `tag${i}`)
-    const wrapper = mountVideoInfo({ props: { video: { ...baseVideo, tags }, videoPlayer: null } })
+    const wrapper = mountVideoInfo({
+      props: { video: { ...baseVideo, tags }, videoPlayer: null, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
 
-    await wrapper.find('.mb-4.space-y-3 button').trigger('click')
+    await openEditModal(wrapper)
 
-    expect(wrapper.find('input[placeholder="Add a tag..."]').exists()).toBe(false)
+    expect(body.find('input[placeholder="Add a tag..."]').exists()).toBe(false)
   })
 
   it('renders tags as links to the browse page when not editing', async () => {
@@ -318,5 +380,18 @@ describe('VideoInfo', () => {
     await refreshButton.trigger('click')
 
     expect(wrapper.emitted('refresh-video')).toBeTruthy()
+  })
+
+  it('shows the saveError message inside the modal and keeps it open while saving', async () => {
+    mockUser.value = { username: 'alice' }
+    const wrapper = mountVideoInfo({
+      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: 'Failed to save changes.' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
+
+    await openEditModal(wrapper)
+
+    expect(body.text()).toContain('Failed to save changes.')
   })
 })

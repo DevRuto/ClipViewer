@@ -28,7 +28,7 @@ const processingVideo = { ...processedVideo, processed: false }
 
 const VideoPlayerStub = { template: '<div class="video-player-stub" />', methods: { goToTime: vi.fn() } }
 const VideoInfoStub = {
-  props: ['video', 'videoPlayer'],
+  props: ['video', 'videoPlayer', 'saving', 'saveError'],
   emits: ['update-video', 'delete-video', 'refresh-video', 'retry-video'],
   template: '<div class="video-info-stub" />',
 }
@@ -128,7 +128,7 @@ describe('VideoView', () => {
     expect(mockPush).toHaveBeenCalledWith('/browse')
   })
 
-  it('shows an error banner when updating the video fails', async () => {
+  it('passes the save error to VideoInfo (not the page-level banner) when updating fails', async () => {
     api.get.mockResolvedValueOnce({ status: 200, data: processedVideo })
     const wrapper = mount(VideoView, { global: { stubs } })
     await flushPromises()
@@ -139,7 +139,32 @@ describe('VideoView', () => {
       .vm.$emit('update-video', { name: 'Renamed', unlisted: false, description: '' })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Update failed')
+    // A failed save is surfaced inside VideoInfo's own edit modal via the saveError prop, not
+    // the page-level banner (which stays reserved for load/retry/delete failures) - the modal
+    // overlay would hide that banner while open anyway.
+    expect(wrapper.findComponent(VideoInfoStub).props('saveError')).toBe('Update failed')
+    expect(wrapper.findComponent(VideoInfoStub).props('saving')).toBe(false)
+    expect(wrapper.text()).not.toContain('Update failed')
+  })
+
+  it('sets saving true on VideoInfo while an update PUT is in flight', async () => {
+    api.get.mockResolvedValueOnce({ status: 200, data: processedVideo })
+    const wrapper = mount(VideoView, { global: { stubs } })
+    await flushPromises()
+
+    let resolvePut
+    api.put.mockReturnValueOnce(new Promise((resolve) => { resolvePut = resolve }))
+    wrapper
+      .findComponent(VideoInfoStub)
+      .vm.$emit('update-video', { name: 'Renamed', unlisted: false, description: '' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findComponent(VideoInfoStub).props('saving')).toBe(true)
+
+    resolvePut({ status: 200, data: { ...processedVideo, name: 'Renamed' } })
+    await flushPromises()
+
+    expect(wrapper.findComponent(VideoInfoStub).props('saving')).toBe(false)
   })
 
   it('shows an error banner when deleting the video fails', async () => {

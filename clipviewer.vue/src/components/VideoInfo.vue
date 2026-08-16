@@ -1,17 +1,24 @@
 <script setup>
-import { ref, computed, nextTick, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, nextTick, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+import { renderMarkdown } from '@/lib/markdown'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
+import MarkdownField from '@/components/MarkdownField.vue'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,25 +50,13 @@ import {
 const MAX_TAGS = 15
 const MAX_TAG_LENGTH = 30
 
-// Debounce utility function
-const debounceTimeoutIds = []
-function debounce(fn, delay) {
-  let timeoutId
-  return function (...args) {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => fn.apply(this, args), delay)
-    debounceTimeoutIds.push(timeoutId)
-  }
-}
-
 let copiedTimeoutId = null
 
 onUnmounted(() => {
-  debounceTimeoutIds.forEach(clearTimeout)
   clearTimeout(copiedTimeoutId)
 })
 
-const props = defineProps(['video', 'videoPlayer'])
+const props = defineProps(['video', 'videoPlayer', 'saving', 'saveError'])
 const emit = defineEmits(['update-video', 'delete-video', 'refresh-video', 'retry-video'])
 
 const includeTimestamp = ref(false)
@@ -96,22 +91,10 @@ const processingProgress = computed(() => {
   return Math.min(100, Math.max(0, Math.round(value)))
 })
 
-const unlisted = ref(props.video.unlisted)
-const name = ref(props.video.name)
-const savedName = ref(props.video.name)
-const description = ref(props.video.description || '')
-const tags = ref([...(props.video.tags || [])])
-const newTag = ref('')
-const isEditing = ref(false)
 const wasProcessing = ref(!props.video.processed)
-const titleInputRef = ref(null)
 
 // Computed property to render description as markdown
-const renderedDescription = computed(() => {
-  if (!description.value) return ''
-  const rawHtml = marked(description.value)
-  return DOMPurify.sanitize(rawHtml)
-})
+const renderedDescription = computed(() => renderMarkdown(props.video.description))
 
 // The rendered description is clamped to 2 lines by default; Show more/less only appears when
 // the content actually overflows that clamp (measured via scrollHeight vs clientHeight).
@@ -127,53 +110,13 @@ function checkDescTruncation() {
 }
 
 watch(
-  [renderedDescription, isEditing],
+  renderedDescription,
   () => {
     descExpanded.value = false
     checkDescTruncation()
   },
   { immediate: true },
 )
-
-// Watch for changes and emit to parent
-watch(unlisted, (newValue) => {
-  emit('update-video', { ...props.video, unlisted: newValue })
-})
-
-// Tags are added/removed one at a time (a discrete action), so unlike name/description they're
-// emitted immediately rather than debounced.
-function addTag() {
-  const tag = newTag.value.trim()
-  newTag.value = ''
-  if (!tag || tag.length > MAX_TAG_LENGTH) return
-  if (tags.value.length >= MAX_TAGS) return
-  if (tags.value.some((t) => t.toLowerCase() === tag.toLowerCase())) return
-
-  tags.value = [...tags.value, tag]
-  emit('update-video', { ...props.video, tags: tags.value })
-}
-
-function removeTag(tag) {
-  tags.value = tags.value.filter((t) => t !== tag)
-  emit('update-video', { ...props.video, tags: tags.value })
-}
-
-// Debounced name watcher - blank/whitespace-only titles are never autosaved
-const debouncedNameUpdate = debounce((newValue) => {
-  const trimmed = newValue.trim()
-  if (!trimmed) return
-  savedName.value = trimmed
-  emit('update-video', { ...props.video, name: trimmed })
-}, 500)
-
-watch(name, debouncedNameUpdate)
-
-// Debounced description watcher
-const debouncedDescriptionUpdate = debounce((newValue) => {
-  emit('update-video', { ...props.video, description: newValue })
-}, 500)
-
-watch(description, debouncedDescriptionUpdate)
 
 // Watch for video processing status changes
 watch(
@@ -188,20 +131,71 @@ watch(
   { immediate: true }
 )
 
-// Focus (and select) the title input as soon as edit mode opens
+// --- Edit modal -------------------------------------------------------
+// All edits (name/description/tags/unlisted) are staged in `draft` and only sent to the
+// parent as a single combined update on Save - this avoids the previous per-field autosave
+// design where independent debounced watchers could race and silently clobber each other.
+const dialogOpen = ref(false)
+const draft = reactive({ name: '', description: '', tags: [], unlisted: false })
+const newTag = ref('')
+const nameInputRef = ref(null)
+
+function resetDraft() {
+  draft.name = props.video.name
+  draft.description = props.video.description || ''
+  draft.tags = [...(props.video.tags || [])]
+  draft.unlisted = props.video.unlisted
+}
+
+function setDialogOpen(value) {
+  if (!value && props.saving) return // don't allow closing while a save is in flight
+  if (value) resetDraft()
+  dialogOpen.value = value
+}
+
+// Auto-close on a successful save; on failure stay open so saveError stays visible
 watch(
-  isEditing,
-  (editing) => {
-    if (!editing) return
-    nextTick(() => {
-      titleInputRef.value?.$el?.focus()
-      titleInputRef.value?.$el?.select()
-    })
+  () => props.saving,
+  (isSaving, wasSaving) => {
+    if (wasSaving && !isSaving && !props.saveError) {
+      dialogOpen.value = false
+    }
   },
 )
 
-function toggleEdit() {
-  isEditing.value = !isEditing.value
+// Focus (and select) the name field each time the modal opens
+watch(dialogOpen, (open) => {
+  if (!open) return
+  nextTick(() => {
+    nameInputRef.value?.$el?.focus()
+    nameInputRef.value?.$el?.select()
+  })
+})
+
+function addTag() {
+  const tag = newTag.value.trim()
+  newTag.value = ''
+  if (!tag || tag.length > MAX_TAG_LENGTH) return
+  if (draft.tags.length >= MAX_TAGS) return
+  if (draft.tags.some((t) => t.toLowerCase() === tag.toLowerCase())) return
+
+  draft.tags = [...draft.tags, tag]
+}
+
+function removeTag(tag) {
+  draft.tags = draft.tags.filter((t) => t !== tag)
+}
+
+function submitEdit() {
+  const trimmed = draft.name.trim()
+  if (!trimmed) return
+  emit('update-video', {
+    ...props.video,
+    name: trimmed,
+    description: draft.description,
+    tags: draft.tags,
+    unlisted: draft.unlisted,
+  })
 }
 
 // The `download` attribute replaces the filename entirely rather than just suggesting one, so
@@ -214,30 +208,6 @@ const downloadFilename = computed(() => {
   const baseName = props.video?.name || props.video?.videoId || 'video'
   return ext && !baseName.toLowerCase().endsWith(ext.toLowerCase()) ? `${baseName}${ext}` : baseName
 })
-
-function handleEnterKey(event) {
-  event.target.blur()
-  isEditing.value = false
-}
-
-function handleEscapeKey(event) {
-  // Unlike blur/Enter, Escape discards whatever hasn't been saved yet
-  name.value = savedName.value
-  event.target.blur()
-  isEditing.value = false
-}
-
-// Deliberately does not close edit mode - the edit panel also holds the unlisted switch and
-// the delete confirmation dialog, and that dialog moves focus outside the title input (into a
-// teleported AlertDialogContent) as soon as it opens, which would otherwise blur the input and
-// collapse the whole panel (dialog included) right as it's opening. Closing edit mode is left to
-// the pencil toggle, Enter, or Escape.
-function onTitleBlur() {
-  // Revert to the last successfully saved title rather than leaving the video nameless
-  if (!name.value.trim()) {
-    name.value = savedName.value
-  }
-}
 
 async function copyLink() {
   const url = new URL(window.location.href)
@@ -284,83 +254,115 @@ watch(
 
 <template>
   <div class="p-4 sm:p-6">
-    <div v-if="ownsVideo" class="mb-4 space-y-3">
-      <!-- Editable title with toggle icon -->
-      <div class="flex items-center gap-2">
-        <!-- Edit toggle button -->
-        <Button
-          variant="ghost"
-          size="icon"
-          class="size-10 sm:size-9"
-          :class="isEditing ? 'text-primary' : 'text-muted-foreground'"
-          @click="toggleEdit"
-        >
-          <Pencil class="size-5" />
-        </Button>
-
-        <!-- Title display or input -->
-        <Input
-          v-if="isEditing"
-          v-model="name"
-          ref="titleInputRef"
-          class="flex-1 min-w-0 text-2xl font-bold h-auto py-2"
-          placeholder="Video title"
-          @blur="onTitleBlur"
-          @keydown.enter="handleEnterKey"
-          @keydown.esc="handleEscapeKey"
-        />
-        <h1
-          v-else
-          class="flex-1 min-w-0 text-2xl font-bold break-words line-clamp-2 sm:line-clamp-3 cursor-text hover:text-muted-foreground transition-colors"
-          @click="toggleEdit"
-        >
-          {{ name }}
-        </h1>
-
-        <!-- Persistent unlisted indicator, shown outside of edit mode where the switch already covers it -->
-        <span
-          v-if="!isEditing && unlisted"
-          class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
-        >
-          <EyeOff class="size-3" />
-          Unlisted
-        </span>
-      </div>
-
-      <!-- Unlisted switch and Delete button - only show when editing -->
-      <div v-if="isEditing" class="flex flex-wrap items-center justify-between gap-3">
-        <!-- Public/Unlisted toggle switch -->
-        <label class="flex items-center gap-3 py-1.5 text-sm cursor-pointer select-none">
-          <span :class="unlisted ? 'text-muted-foreground' : 'font-medium text-foreground'">Public</span>
-          <Switch v-model="unlisted" />
-          <span :class="unlisted ? 'font-medium text-foreground' : 'text-muted-foreground'">Unlisted</span>
-        </label>
-
-        <!-- Delete button -->
-        <AlertDialog>
-          <AlertDialogTrigger as-child>
-            <Button variant="destructive" size="sm" class="h-10 sm:h-8">
-              <Trash2 class="size-4" />
-              Delete Video
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Video</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete "{{ video.name }}"? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction :class="buttonVariants({ variant: 'destructive' })" @click="confirmDelete">
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+    <!-- Title with edit toggle (owner) / plain read-only title (everyone) -->
+    <div class="mb-1 flex items-center gap-2">
+      <Button
+        v-if="ownsVideo"
+        variant="ghost"
+        size="icon"
+        class="size-10 sm:size-9 text-muted-foreground"
+        aria-label="Edit video details"
+        @click="setDialogOpen(true)"
+      >
+        <Pencil class="size-5" />
+      </Button>
+      <h1 class="flex-1 min-w-0 text-2xl font-bold break-words line-clamp-2 sm:line-clamp-3">
+        {{ video.name }}
+      </h1>
+      <span
+        v-if="ownsVideo && video.unlisted"
+        class="shrink-0 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+      >
+        <EyeOff class="size-3" />
+        Unlisted
+      </span>
     </div>
+
+    <!-- Edit modal (owner only) -->
+    <Dialog v-if="ownsVideo" :open="dialogOpen" @update:open="setDialogOpen">
+      <DialogContent class="sm:max-w-lg">
+        <DialogHeader>
+          <div class="flex items-center justify-between gap-3 pr-6">
+            <DialogTitle>Edit video</DialogTitle>
+            <label class="flex items-center gap-2 shrink-0 text-sm cursor-pointer select-none">
+              <span :class="draft.unlisted ? 'text-muted-foreground' : 'font-medium text-foreground'">Public</span>
+              <Switch v-model="draft.unlisted" />
+              <span :class="draft.unlisted ? 'font-medium text-foreground' : 'text-muted-foreground'">Unlisted</span>
+            </label>
+          </div>
+          <DialogDescription class="sr-only">
+            Edit the title, description, tags, and visibility of this video.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Alert v-if="saveError" variant="destructive">
+          <AlertDescription>{{ saveError }}</AlertDescription>
+        </Alert>
+
+        <form class="space-y-4" @submit.prevent="submitEdit">
+          <Input ref="nameInputRef" v-model="draft.name" placeholder="Video title" />
+
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              v-for="t in draft.tags"
+              :key="t"
+              data-testid="tag-chip"
+              class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+            >
+              {{ t }}
+              <button type="button" class="hover:text-destructive" @click="removeTag(t)">
+                <X class="size-3" />
+              </button>
+            </span>
+            <Input
+              v-if="draft.tags.length < MAX_TAGS"
+              v-model="newTag"
+              placeholder="Add a tag..."
+              class="h-7 w-32 text-xs"
+              :maxlength="MAX_TAG_LENGTH"
+              @keydown.enter.prevent="addTag"
+            />
+          </div>
+
+          <MarkdownField v-model="draft.description" />
+
+          <DialogFooter class="sm:justify-between">
+            <AlertDialog>
+              <AlertDialogTrigger as-child>
+                <Button type="button" variant="destructive" size="sm">
+                  <Trash2 class="size-4" />
+                  Delete Video
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Video</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete "{{ video.name }}"? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction :class="buttonVariants({ variant: 'destructive' })" @click="confirmDelete">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <div class="flex gap-2">
+              <Button type="button" variant="outline" :disabled="saving" @click="setDialogOpen(false)">
+                Cancel
+              </Button>
+              <Button type="submit" :disabled="saving || !draft.name.trim()">
+                <Loader2 v-if="saving" class="size-4 animate-spin" />
+                Save
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
 
     <!-- Processing indicator -->
     <Alert v-if="isProcessing" class="mb-4 border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20">
@@ -403,17 +405,7 @@ watch(
       </AlertDescription>
     </Alert>
 
-    <!-- Non-owner title (owner's title is rendered above, alongside edit controls) -->
-    <h1
-      v-if="!ownsVideo"
-      class="flex-1 min-w-0 text-2xl font-bold break-words line-clamp-2 sm:line-clamp-3"
-    >
-      {{ name }}
-    </h1>
-
-    <!-- Compact meta strip: author, duration, date, read-only tags, and the primary actions.
-         Kept visible in both view and edit mode so Copy Link/Download stay reachable without
-         scrolling past the description. -->
+    <!-- Compact meta strip: author, duration, date, tags, and the primary actions -->
     <div class="mt-3 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
       <div class="text-xs px-2 py-1 rounded font-medium" :style="{ backgroundColor: authorColor, color: textColor }">
         {{ video.author }}
@@ -427,18 +419,15 @@ watch(
         {{ new Date(video.createdAt).toLocaleDateString() }}
       </span>
 
-      <!-- Read-only tags; while editing they're managed via the dedicated tag editor below instead -->
-      <template v-if="!isEditing">
-        <RouterLink
-          v-for="t in tags"
-          :key="t"
-          :to="`/browse?tag=${encodeURIComponent(t)}`"
-          class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-        >
-          <TagIcon class="size-3" />
-          {{ t }}
-        </RouterLink>
-      </template>
+      <RouterLink
+        v-for="t in video.tags || []"
+        :key="t"
+        :to="`/browse?tag=${encodeURIComponent(t)}`"
+        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+      >
+        <TagIcon class="size-3" />
+        {{ t }}
+      </RouterLink>
 
       <div class="flex-1 min-w-2"></div>
 
@@ -471,11 +460,8 @@ watch(
       </a>
     </div>
 
-    <!-- Description: editable textarea for the owner, clamped rendered markdown otherwise -->
-    <div v-if="isEditing" class="mb-4">
-      <Textarea v-model="description" rows="3" placeholder="Add a description..." class="resize-none" />
-    </div>
-    <div v-else-if="description" class="mb-4">
+    <!-- Description: clamped rendered markdown -->
+    <div v-if="video.description" class="mb-4">
       <div
         ref="descRef"
         class="text-muted-foreground prose prose-sm max-w-none dark:prose-invert"
@@ -490,28 +476,6 @@ watch(
       >
         {{ descExpanded ? 'Show less' : 'Show more' }}
       </button>
-    </div>
-
-    <!-- Tags: add/remove chips for the owner while editing (read-only tags live in the strip above) -->
-    <div v-if="isEditing" class="mb-4 flex flex-wrap items-center gap-2">
-      <span
-        v-for="t in tags"
-        :key="t"
-        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
-      >
-        {{ t }}
-        <button type="button" class="hover:text-destructive" @click="removeTag(t)">
-          <X class="size-3" />
-        </button>
-      </span>
-      <Input
-        v-if="tags.length < MAX_TAGS"
-        v-model="newTag"
-        placeholder="Add a tag..."
-        class="h-7 w-32 text-xs"
-        :maxlength="MAX_TAG_LENGTH"
-        @keydown.enter.prevent="addTag"
-      />
     </div>
   </div>
 </template>

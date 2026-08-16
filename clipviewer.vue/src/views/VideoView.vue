@@ -17,6 +17,8 @@ const loading = ref(true)
 const videoPlayer = ref(null)
 const pollingInterval = ref(null)
 const error = ref('')
+const savingVideo = ref(false)
+const updateError = ref('')
 
 const videoSource = ref(null)
 
@@ -187,6 +189,8 @@ function onVideoLoaded() {
 }
 
 async function updateVideo(updatedVideo) {
+  savingVideo.value = true
+  updateError.value = ''
   try {
     const response = await api.put(`/api/videos/${route.params.videoId}`, {
       unlisted: updatedVideo.unlisted,
@@ -197,7 +201,6 @@ async function updateVideo(updatedVideo) {
 
     if (response.status === 200) {
       video.value = response.data
-      error.value = ''
       // Update document title with new video name
       if (video.value.name) {
         document.title = `${video.value.name} - ClipViewer`
@@ -205,7 +208,9 @@ async function updateVideo(updatedVideo) {
     }
   } catch (err) {
     console.error('Failed to update video:', err)
-    error.value = err.response?.data?.message || 'Failed to save changes. Please try again.'
+    updateError.value = err.response?.data?.message || 'Failed to save changes. Please try again.'
+  } finally {
+    savingVideo.value = false
   }
 }
 
@@ -296,6 +301,8 @@ async function refreshVideo() {
         <VideoInfo
           :video="video"
           :videoPlayer="videoPlayer"
+          :saving="savingVideo"
+          :save-error="updateError"
           @update-video="updateVideo"
           @delete-video="deleteVideo"
           @refresh-video="refreshVideo"
