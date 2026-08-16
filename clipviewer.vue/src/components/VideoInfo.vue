@@ -233,7 +233,9 @@ async function copyLink(withTimestamp) {
   const url = new URL(window.location.href)
 
   if (withTimestamp) {
-    url.searchParams.set('t', currentTime.value)
+    // Use the unrounded player time so the link seeks to the exact frame, not just the
+    // current whole second shown in the UI.
+    url.searchParams.set('t', props.videoPlayer?.currentTime ?? currentTime.value)
   } else {
     url.searchParams.delete('t')
   }
