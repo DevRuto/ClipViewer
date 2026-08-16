@@ -31,7 +31,7 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
 
 <template>
   <div class="bg-background min-h-screen flex flex-col">
-    <nav class="border-b sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav class="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div class="container mx-auto px-4 h-16 flex items-center justify-between">
         <RouterLink to="/" class="text-xl font-bold shrink-0">ClipViewer</RouterLink>
 
