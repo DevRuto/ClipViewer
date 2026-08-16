@@ -119,6 +119,16 @@ function onVideoClick() {
   showControls()
 }
 
+// Mirrors the touch double-tap-edge-seek gesture below for mouse users: a click on the
+// left/right edge is held for DOUBLE_TAP_WINDOW to see if a second click lands in the same zone
+// before committing to a plain toggle, so a double-click purely seeks without also flipping
+// playback state along the way. Unlike touch (resolveSingleTap), a lone desktop click always
+// toggles play/pause unconditionally - mouse users don't have the mobile "big play button is
+// the only thing that resumes playback" ambiguity, so there's no need to special-case paused.
+function onVideoElementClick(event) {
+  resolveZoneGesture(zoneForX(event.clientX, event.currentTarget.getBoundingClientRect()), onVideoClick)
+}
+
 // While playing, a tap that isn't a confirmed edge double-tap pauses (same as onVideoClick).
 // While paused, the big play button is the only thing that resumes playback - a tap anywhere
 // else on the player just toggles the controls overlay instead of also restarting playback.
@@ -165,6 +175,34 @@ function zoneForX(clientX, rect) {
   return 'center'
 }
 
+// Shared by the touch and mouse gesture handlers: resolves a confirmed tap/click in `zone`,
+// treating it as the second half of a double-tap/double-click if one is already pending in the
+// same zone (seeking instead of resolving as a plain tap/click), otherwise holding it for
+// DOUBLE_TAP_WINDOW in case a second one follows. `resolveSingle` is what a lone (non-edge, or
+// timed-out) tap/click resolves to - touch and mouse each pass their own since they differ when
+// paused (see callers).
+function resolveZoneGesture(zone, resolveSingle) {
+  if (tapTimer && zone === pendingTapZone) {
+    clearTapTimer()
+    if (zone === 'center') {
+      resolveSingle()
+    } else {
+      seekBy(zone === 'left' ? -SEEK_STEP_LARGE : SEEK_STEP_LARGE)
+      flashSeek(zone === 'left' ? 'back' : 'forward')
+      showControls()
+    }
+    return
+  }
+
+  clearTapTimer()
+  pendingTapZone = zone
+  tapTimer = setTimeout(() => {
+    tapTimer = null
+    pendingTapZone = null
+    resolveSingle()
+  }, DOUBLE_TAP_WINDOW)
+}
+
 function onVideoTouchStart(event) {
   const touch = event.touches?.[0]
   if (!touch) return
@@ -189,33 +227,7 @@ function onVideoTouchEnd(event) {
   // Confirmed tap: handle it here and suppress the trailing synthetic click so it isn't
   // double-handled by the @click listener below.
   event.preventDefault()
-  const zone = zoneForX(touch.clientX, event.currentTarget.getBoundingClientRect())
-
-  if (tapTimer && zone === pendingTapZone) {
-    // Second tap in the same zone within the window - resolve now instead of waiting out the
-    // rest of it.
-    clearTapTimer()
-    if (zone === 'center') {
-      resolveSingleTap()
-    } else {
-      seekBy(zone === 'left' ? -SEEK_STEP_LARGE : SEEK_STEP_LARGE)
-      flashSeek(zone === 'left' ? 'back' : 'forward')
-      showControls()
-    }
-    return
-  }
-
-  // First tap in this zone - wait for a possible second tap before committing to a plain
-  // resolution. This has to apply to the center zone too: resolving immediately would change
-  // the controls overlay (play button / control bar) before we know whether the user is
-  // mid-double-tap, which could shift what a second tap in another zone lands on.
-  clearTapTimer()
-  pendingTapZone = zone
-  tapTimer = setTimeout(() => {
-    tapTimer = null
-    pendingTapZone = null
-    resolveSingleTap()
-  }, DOUBLE_TAP_WINDOW)
+  resolveZoneGesture(zoneForX(touch.clientX, event.currentTarget.getBoundingClientRect()), resolveSingleTap)
 }
 
 function onMouseLeaveRoot() {
@@ -276,7 +288,7 @@ function onKeydown(event) {
       :poster="placeholder"
       class="h-full w-full object-contain"
       playsinline
-      @click="onVideoClick"
+      @click="onVideoElementClick"
       @touchstart="onVideoTouchStart"
       @touchend="onVideoTouchEnd"
     ></video>
@@ -289,7 +301,7 @@ function onKeydown(event) {
       crossorigin
       playsinline
       class="h-full w-full object-contain"
-      @click="onVideoClick"
+      @click="onVideoElementClick"
       @touchstart="onVideoTouchStart"
       @touchend="onVideoTouchEnd"
     ></hls-video>
@@ -331,7 +343,7 @@ function onKeydown(event) {
         </button>
       </div>
 
-      <!-- Gesture-seek flash: brief +/-10s indicator after a double-tap on the left/right edge -->
+      <!-- Gesture-seek flash: brief +/-10s indicator after a double-tap/double-click on the left/right edge -->
       <div
         v-if="seekFlash"
         :key="seekFlashKey"

@@ -47,12 +47,17 @@ describe('VideoPlayer', () => {
   })
 
   it('toggles play/pause when the video is clicked', async () => {
+    vi.useFakeTimers()
     const wrapper = mount(VideoPlayer, { props: { src: '/files/source/clip.mp4' } })
     markLoaded(wrapper)
     await wrapper.vm.$nextTick()
 
+    // A click is held for the double-tap/double-click window (see resolveZoneGesture in
+    // VideoPlayer.vue) before it commits to a play/pause toggle, in case a second click follows.
     await wrapper.find('video').trigger('click')
+    await vi.advanceTimersByTimeAsync(300)
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 
   it('responds to space/arrow-key shortcuts on the player', async () => {
