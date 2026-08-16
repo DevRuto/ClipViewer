@@ -50,6 +50,13 @@ try
         var count = await VideoConversionWorker.BackfillClipSizesAsync(dbContext, outputVideoFolder);
         Log.Information("Backfilled SizeBytes for {Count} clip(s)", count);
     }
+    else if (args.Contains("--backfill-sprites"))
+    {
+        using var scope = host.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var count = await VideoConversionWorker.BackfillScrubSpritesAsync(dbContext, outputVideoFolder);
+        Log.Information("Backfilled scrub sprites for {Count} clip(s)", count);
+    }
     else
     {
         host.Run();

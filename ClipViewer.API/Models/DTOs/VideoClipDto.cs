@@ -15,6 +15,7 @@ public class VideoClipDto
 
     public string HlsPlaylistFile { get; set; } = string.Empty;
     public string Thumbnail { get; set; } = string.Empty;
+    public string ScrubSprite { get; set; } = string.Empty;
     public TimeSpan Duration { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool Processed { get; set; }
@@ -43,6 +44,9 @@ public class VideoClipDto
             Thumbnail = string.IsNullOrEmpty(entity.Thumbnail)
                 ? ""
                 : $"{publicFilePath}{entity.Thumbnail}",
+            ScrubSprite = string.IsNullOrEmpty(entity.ScrubSprite)
+                ? ""
+                : $"{publicFilePath}{entity.ScrubSprite}",
             Duration = entity.Duration,
             CreatedAt = entity.CreatedAt,
             Processed = entity.Processed,

@@ -1,6 +1,8 @@
+using System.Text.Json;
 using ClipViewer.Data;
 using ClipViewer.Data.Models;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using Xabe.FFmpeg;
 
 namespace ClipViewer.Worker;
@@ -146,6 +148,10 @@ public partial class VideoConversionWorker(
             job.CompletedAt = DateTime.UtcNow;
             job.Status = "Completed";
 
+            // Save now so the clip is watchable immediately - the scrub sprite below is a nice-to-have
+            // that shouldn't hold up playback, especially on long videos.
+            await dbContext.SaveChangesAsync(stoppingToken);
+
             try
             {
                 // Delete temp file
@@ -157,6 +163,21 @@ public partial class VideoConversionWorker(
             }
 
             LogProcessingFinished(logger, job.JobId, job.VideoId);
+
+            try
+            {
+                var thumbnailsDir = Path.Combine(job.OutputDirectory, "thumbnails");
+                dbVideo.ScrubSprite = await GenerateScrubSprite(
+                    sourceFile, job.VideoId, thumbnailsDir, videoInfo.Duration, stoppingToken);
+                dbVideo.SizeBytes += GetFileSize(Path.Combine(thumbnailsDir, $"{job.VideoId}-sprite.jpg")) +
+                                     GetFileSize(Path.Combine(thumbnailsDir, $"{job.VideoId}-sprite.json"));
+                await dbContext.SaveChangesAsync(stoppingToken);
+            }
+            catch (Exception e)
+            {
+                // Non-fatal: the clip is already watchable without a scrubbing preview.
+                LogUnableToGenerateSprite(logger, job.JobId, job.VideoId, e);
+            }
         }
         catch (Exception e)
         {
@@ -195,6 +216,10 @@ public partial class VideoConversionWorker(
 
     [LoggerMessage(LogLevel.Information, "Video progress updated {videoId} - {percent}%")]
     static partial void LogVideoProgressUpdated(ILogger<VideoConversionWorker> logger, string videoId, int percent);
+
+    [LoggerMessage(LogLevel.Warning, "Unable to generate scrub sprite for job {job} - {videoId}")]
+    static partial void LogUnableToGenerateSprite(
+        ILogger<VideoConversionWorker> logger, Guid job, string videoId, Exception e);
 
     private static IConversion GenerateHlsTask(
         string videoFile, string destinationFolder)
@@ -239,6 +264,51 @@ public partial class VideoConversionWorker(
     {
         return FFmpeg.GetMediaInfo(videoFile, stoppingToken);
     }
+
+    // Generates a scrubbing-preview sprite: a grid of small frames sampled at a fixed interval,
+    // tiled into one image, plus a JSON manifest describing the grid so the frontend can compute
+    // which tile corresponds to a given seek time without any additional plumbing on the DB side.
+    // The interval is scaled up for longer videos so the sprite (and tile count) stays bounded.
+    private static async Task<string> GenerateScrubSprite(
+        string videoFile, string videoId, string thumbnailsDir, TimeSpan duration, CancellationToken stoppingToken)
+    {
+        const int targetTileCount = 100;
+        const int minIntervalSeconds = 5;
+
+        var totalSeconds = Math.Max(duration.TotalSeconds, minIntervalSeconds);
+        var interval = Math.Max(minIntervalSeconds, (int)Math.Ceiling(totalSeconds / targetTileCount));
+        var count = Math.Max(1, (int)Math.Ceiling(totalSeconds / interval));
+        var columns = (int)Math.Ceiling(Math.Sqrt(count));
+        var rows = (int)Math.Ceiling((double)count / columns);
+
+        Directory.CreateDirectory(thumbnailsDir);
+        var spriteFile = Path.Combine(thumbnailsDir, $"{videoId}-sprite.jpg");
+        var manifestFile = Path.Combine(thumbnailsDir, $"{videoId}-sprite.json");
+
+        var conversion = FFmpeg.Conversions.New()
+            .AddParameter($"-i \"{videoFile}\"")
+            .AddParameter($"-vf \"fps=1/{interval},scale=160:-1,tile={columns}x{rows}\"")
+            .AddParameter($"\"{spriteFile}\"");
+        await conversion.Start(stoppingToken);
+
+        var spriteInfo = await FFmpeg.GetMediaInfo(spriteFile, stoppingToken);
+        var spriteStream = spriteInfo.VideoStreams.First();
+
+        var manifest = new ScrubSpriteManifest(
+            $"/thumbnails/{videoId}-sprite.jpg",
+            interval,
+            spriteStream.Width / columns,
+            spriteStream.Height / rows,
+            columns,
+            count);
+
+        await File.WriteAllTextAsync(manifestFile, JsonSerializer.Serialize(manifest), stoppingToken);
+
+        return $"/thumbnails/{videoId}-sprite.json";
+    }
+
+    private record ScrubSpriteManifest(
+        string Image, int Interval, int TileWidth, int TileHeight, int Columns, int Count);
 
     private static async Task TrimVideo(
         string videoFilePath, string destinationFile, int startTime = 0, int? endTime = null)
@@ -289,6 +359,47 @@ public partial class VideoConversionWorker(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return clips.Count;
+    }
+
+    // One-off backfill for clips that were processed before scrub sprites existed. Invoked via
+    // `--backfill-sprites` (see Program.cs); safe to re-run since it only targets clips still
+    // missing a ScrubSprite. Skips (rather than fails) a clip whose source file is gone, and logs
+    // and continues past any single clip that fails to generate so one bad file doesn't abort the batch.
+    public static async Task<int> BackfillScrubSpritesAsync(
+        ApplicationDbContext dbContext, string outputVideoFolder, CancellationToken cancellationToken = default)
+    {
+        var clips = await dbContext.VideoClips
+            .Where(c => c.Processed && c.ScrubSprite == "")
+            .ToListAsync(cancellationToken);
+
+        var thumbnailsDir = Path.Combine(outputVideoFolder, "thumbnails");
+        var updated = 0;
+
+        foreach (var clip in clips)
+        {
+            var sourceFile = ResolveOutputPath(outputVideoFolder, clip.SourceVideoFile);
+            if (!File.Exists(sourceFile))
+            {
+                Log.Warning("Skipping scrub sprite backfill for {VideoId} - source file missing", clip.VideoId);
+                continue;
+            }
+
+            try
+            {
+                clip.ScrubSprite = await GenerateScrubSprite(
+                    sourceFile, clip.VideoId, thumbnailsDir, clip.Duration, cancellationToken);
+                clip.SizeBytes += GetFileSize(Path.Combine(thumbnailsDir, $"{clip.VideoId}-sprite.jpg")) +
+                                   GetFileSize(Path.Combine(thumbnailsDir, $"{clip.VideoId}-sprite.json"));
+                updated++;
+            }
+            catch (Exception e)
+            {
+                Log.Warning(e, "Unable to generate scrub sprite for {VideoId}", clip.VideoId);
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return updated;
     }
 
     private static string ResolveOutputPath(string outputVideoFolder, string relativePath) =>

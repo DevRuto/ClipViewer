@@ -22,6 +22,7 @@ public class VideoClip
 
     public string HlsPlaylistFile { get; set; } = string.Empty;
     public string Thumbnail { get; set; } = string.Empty;
+    public string ScrubSprite { get; set; } = string.Empty;
     public TimeSpan Duration { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool Processed { get; set; }
