@@ -8,6 +8,7 @@ import { formatDuration } from '@/composables/useDuration.js'
 import VideoSeekBar from './video-player/VideoSeekBar.vue'
 import VideoVolumeControl from './video-player/VideoVolumeControl.vue'
 import PlaybackRateMenu from './video-player/PlaybackRateMenu.vue'
+import VideoSettingsMenu from './video-player/VideoSettingsMenu.vue'
 import { playerButtonClass } from './video-player/playerButtonClass.js'
 
 const SEEK_STEP_SMALL = 5
@@ -15,6 +16,7 @@ const SEEK_STEP_LARGE = 10
 const VOLUME_STEP = 0.05
 const CONTROLS_HIDE_DELAY = 2500
 const PREVENT_DEFAULT_KEYS = new Set([' ', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'home', 'end'])
+const DOUBLE_TAP_SEEK_STORAGE_KEY = 'clipviewer:double-tap-seek-enabled'
 
 // Touch gesture tuning: tapping the outer 30% of the player is a candidate for a double-tap
 // seek; a second tap in the same zone within the window seeks, otherwise it falls back to a
@@ -46,6 +48,12 @@ const playerRoot = ref(null)
 const refVideo = ref(null)
 const videoLoaded = ref(false)
 const controlsVisible = ref(true)
+const doubleTapSeekEnabled = ref(localStorage.getItem(DOUBLE_TAP_SEEK_STORAGE_KEY) !== 'false')
+
+function setDoubleTapSeekEnabled(enabled) {
+  doubleTapSeekEnabled.value = enabled
+  localStorage.setItem(DOUBLE_TAP_SEEK_STORAGE_KEY, String(enabled))
+}
 
 const isHLS = computed(() => props.src.toLowerCase().endsWith('.m3u8'))
 
@@ -206,7 +214,7 @@ function zoneForX(clientX, rect) {
 // double confirmation costs a brief (<300ms) play/pause flicker. `resolveSingle` differs between
 // touch and mouse since they differ when paused (see callers).
 function resolveZoneGesture(zone, resolveSingle) {
-  if (zone === 'center') {
+  if (zone === 'center' || !doubleTapSeekEnabled.value) {
     clearTapTimer()
     resolveSingle()
     return
@@ -434,6 +442,8 @@ function onKeydown(event) {
           <div class="flex-1"></div>
 
           <PlaybackRateMenu :rate="playbackRate" @update:rate="setPlaybackRate" />
+
+          <VideoSettingsMenu :double-tap-seek="doubleTapSeekEnabled" @update:double-tap-seek="setDoubleTapSeekEnabled" />
 
           <button
             type="button"
