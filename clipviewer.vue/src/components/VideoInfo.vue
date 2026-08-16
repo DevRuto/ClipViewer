@@ -452,27 +452,6 @@ watch(
            timestamp button shows the actual value that would be copied. Each also briefly flips
            to a check icon on click, on top of the toast below. -->
       <Button
-        variant="secondary"
-        size="icon"
-        class="size-10 sm:size-8 shrink-0"
-        title="Copy Link"
-        @click="copyLink(false)"
-      >
-        <Transition
-          mode="out-in"
-          enter-active-class="transition duration-150 ease-out"
-          enter-from-class="opacity-0 scale-50"
-          enter-to-class="opacity-100 scale-100"
-          leave-active-class="transition duration-100 ease-in"
-          leave-from-class="opacity-100 scale-100"
-          leave-to-class="opacity-0 scale-50"
-        >
-          <Check v-if="copiedVariant === 'plain'" key="check" class="size-4" />
-          <LinkIcon v-else key="link" class="size-4" />
-        </Transition>
-      </Button>
-
-      <Button
         variant="outline"
         size="sm"
         class="h-10 sm:h-8 rounded-full gap-1.5 px-2.5 shrink-0"
@@ -492,6 +471,27 @@ watch(
           <LinkIcon v-else key="link" class="size-3.5" />
         </Transition>
         {{ formatDuration(currentTime) }}
+      </Button>
+
+      <Button
+        variant="secondary"
+        size="icon"
+        class="size-10 sm:size-8 shrink-0"
+        title="Copy Link"
+        @click="copyLink(false)"
+      >
+        <Transition
+          mode="out-in"
+          enter-active-class="transition duration-150 ease-out"
+          enter-from-class="opacity-0 scale-50"
+          enter-to-class="opacity-100 scale-100"
+          leave-active-class="transition duration-100 ease-in"
+          leave-from-class="opacity-100 scale-100"
+          leave-to-class="opacity-0 scale-50"
+        >
+          <Check v-if="copiedVariant === 'plain'" key="check" class="size-4" />
+          <LinkIcon v-else key="link" class="size-4" />
+        </Transition>
       </Button>
 
       <a
