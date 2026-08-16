@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using ClipViewer.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,7 +53,7 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
                     title = video.Name;
                     description = string.IsNullOrWhiteSpace(video.Description)
                         ? $"Watch \"{video.Name}\" on Ruto's ClipViewer"
-                        : video.Description;
+                        : StripMarkdown(video.Description);
                     image = $"{publicPath}{video.Thumbnail}";
                 }
 
@@ -75,5 +76,28 @@ public class SpaTemplateMiddleware(RequestDelegate next, IWebHostEnvironment env
     private static string GetFullUrl(HttpRequest request)
     {
         return $"{request.Scheme}://{request.Host}{request.Path}{request.QueryString}";
+    }
+
+    // Descriptions are authored as markdown (rendered client-side via marked); social embeds
+    // (Discord/Slack/etc.) only read the raw og:description text, so strip markdown syntax down
+    // to plain text for them rather than showing literal "**", "[text](url)", "#", etc.
+    private static string StripMarkdown(string markdown)
+    {
+        var text = markdown;
+
+        text = Regex.Replace(text, "```[a-zA-Z0-9]*\r?\n?([\\s\\S]*?)```", "$1");
+        text = Regex.Replace(text, "`([^`]*)`", "$1");
+        text = Regex.Replace(text, @"!\[([^\]]*)\]\([^)]*\)", "$1");
+        text = Regex.Replace(text, @"\[([^\]]*)\]\([^)]*\)", "$1");
+        text = Regex.Replace(text, @"^\s{0,3}#{1,6}\s+", "", RegexOptions.Multiline);
+        text = Regex.Replace(text, @"^\s{0,3}>\s?", "", RegexOptions.Multiline);
+        text = Regex.Replace(text, @"(\*\*\*|___)(.*?)\1", "$2");
+        text = Regex.Replace(text, @"(\*\*|__)(.*?)\1", "$2");
+        text = Regex.Replace(text, @"(?<!\w)(\*|_)(.*?)\1(?!\w)", "$2");
+        text = Regex.Replace(text, "~~(.*?)~~", "$1");
+        text = Regex.Replace(text, @"^\s{0,3}[-*+]\s+", "", RegexOptions.Multiline);
+        text = Regex.Replace(text, @"^\s{0,3}\d+\.\s+", "", RegexOptions.Multiline);
+
+        return text.Trim();
     }
 }
