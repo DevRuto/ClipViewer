@@ -163,7 +163,7 @@ const navLinkClass = cn(buttonVariants({ variant: 'ghost' }), 'justify-start md:
 
     <footer class="border-t">
       <div class="container mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
-        <p>&copy; {{ new Date().getFullYear() }} ClipViewer. Created by Ruto.</p>
+        <p>Made by Ruto</p>
         <a
           href="https://github.com/DevRuto/ClipViewer"
           target="_blank"
