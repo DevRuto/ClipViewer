@@ -441,6 +441,40 @@ describe('VideoInfo', () => {
     ])
   })
 
+  it('adds a chapter at the dragged slider time, not the live (hidden-behind-the-dialog) player time', async () => {
+    mockUser.value = { username: 'alice' }
+    const videoPlayer = reactive({ currentTime: 0 })
+    const video = { ...baseVideo, duration: 200 }
+    const wrapper = mountVideoInfo({
+      props: { video, videoPlayer, saving: false, saveError: '' },
+      attachTo: document.body,
+    })
+    const body = new DOMWrapper(document.body)
+
+    videoPlayer.currentTime = 10
+    await wrapper.vm.$nextTick()
+    await openEditModal(wrapper)
+
+    // Simulates playback continuing behind the modal overlay after it opened - the picker should
+    // not follow it, since the slider was already seeded from the time the dialog opened at.
+    videoPlayer.currentTime = 150
+    await wrapper.vm.$nextTick()
+
+    const slider = body.find('input[type="range"]')
+    await slider.setValue('75')
+
+    const addButton = findByText(body, 'button', /Add chapter at/)
+    expect(addButton.text()).toContain('1:15')
+    await addButton.trigger('click')
+    await body.find('input[placeholder="Chapter title"]').setValue('Picked via slider')
+
+    const saveButton = findByText(body, 'button', 'Save')
+    await saveButton.trigger('click')
+
+    const lastEmit = wrapper.emitted('update-video').at(-1)[0]
+    expect(lastEmit.chapters).toEqual([{ startTime: 75, title: 'Picked via slider' }])
+  })
+
   it('removes a chapter from the draft', async () => {
     mockUser.value = { username: 'alice' }
     const video = { ...baseVideo, chapters: [{ id: 1, startTime: 10, title: 'Intro' }] }

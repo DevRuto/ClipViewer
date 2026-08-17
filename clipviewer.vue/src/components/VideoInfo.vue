@@ -171,6 +171,11 @@ const chaptersExpanded = ref(false)
 const chapterTimeErrors = reactive({})
 const chapterTitleRefs = new Map()
 let nextChapterKey = 0
+// The dialog's overlay sits on top of the video, so the player behind it can't be scrubbed while
+// editing - this picker is how a new chapter's time is chosen instead. Seeded from the player's
+// position at the moment the dialog opens (see resetDraft), then only moves by the user's own
+// drags, so background playback doesn't yank it around underneath them.
+const chapterScrubTime = ref(0)
 
 const videoDurationSeconds = computed(() => durationToSeconds(props.video.duration))
 const hasChapterTimeErrors = computed(() => Object.keys(chapterTimeErrors).length > 0)
@@ -230,6 +235,7 @@ function resetDraft() {
   }))
   draft.unlisted = props.video.unlisted
   chaptersExpanded.value = draft.chapters.length > 0
+  chapterScrubTime.value = currentTime.value
   Object.keys(chapterTimeErrors).forEach((k) => delete chapterTimeErrors[k])
 }
 
@@ -455,16 +461,29 @@ watch(
                 </button>
               </div>
 
+              <div v-if="draft.chapters.length < MAX_CHAPTERS" class="flex items-center gap-2">
+                <input
+                  v-model.number="chapterScrubTime"
+                  type="range"
+                  class="h-4 flex-1 accent-primary"
+                  min="0"
+                  :max="Math.max(videoDurationSeconds, 1)"
+                  aria-label="Time to add a chapter at"
+                />
+                <span class="w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                  {{ formatDuration(chapterScrubTime) }}
+                </span>
+              </div>
               <Button
                 v-if="draft.chapters.length < MAX_CHAPTERS"
                 type="button"
                 variant="outline"
                 size="sm"
                 class="gap-1.5"
-                @click="addChapterAt(currentTime)"
+                @click="addChapterAt(chapterScrubTime)"
               >
                 <Plus class="size-3.5" />
-                Add chapter at {{ formatDuration(currentTime) }}
+                Add chapter at {{ formatDuration(chapterScrubTime) }}
               </Button>
             </div>
           </div>
