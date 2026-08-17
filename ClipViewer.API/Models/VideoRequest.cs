@@ -6,4 +6,5 @@ public class VideoRequest
     public bool Unlisted { get; set; } = false;
     public string Description { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = [];
+    public List<ChapterRequest> Chapters { get; set; } = [];
 }

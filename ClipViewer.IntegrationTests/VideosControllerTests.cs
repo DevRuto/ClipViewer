@@ -260,6 +260,144 @@ public class VideosControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task EditVideo_WithChapters_SavesThemSortedByStartTime()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.EditVideo(clip.VideoId, new VideoRequest
+        {
+            Name = "Old Name",
+            Chapters =
+            [
+                new ChapterRequest { StartTime = 90, Title = "Second" },
+                new ChapterRequest { StartTime = 0, Title = "  First  " }
+            ]
+        });
+
+        var dto = Assert.IsType<VideoClipDto>(result.Value);
+        Assert.Equal(2, dto.Chapters.Count);
+        Assert.Equal("First", dto.Chapters[0].Title);
+        Assert.Equal(0, dto.Chapters[0].StartTime);
+        Assert.Equal("Second", dto.Chapters[1].Title);
+        Assert.Equal(90, dto.Chapters[1].StartTime);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithChapters_DropsBlankTitles()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.EditVideo(clip.VideoId, new VideoRequest
+        {
+            Name = "Old Name",
+            Chapters = [new ChapterRequest { StartTime = 0, Title = "   " }]
+        });
+
+        var dto = Assert.IsType<VideoClipDto>(result.Value);
+        Assert.Empty(dto.Chapters);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithNegativeChapterStartTime_ReturnsBadRequest()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.EditVideo(clip.VideoId, new VideoRequest
+        {
+            Name = "Old Name",
+            Chapters = [new ChapterRequest { StartTime = -5, Title = "Bad" }]
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithChapterPastVideoDuration_ReturnsBadRequest()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        clip.Duration = TimeSpan.FromSeconds(60);
+        await _context.SaveChangesAsync();
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.EditVideo(clip.VideoId, new VideoRequest
+        {
+            Name = "Old Name",
+            Chapters = [new ChapterRequest { StartTime = 61, Title = "Too late" }]
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithOverlengthChapterTitle_ReturnsBadRequest()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+
+        var result = await controller.EditVideo(clip.VideoId, new VideoRequest
+        {
+            Name = "Old Name",
+            Chapters = [new ChapterRequest { StartTime = 0, Title = new string('a', 101) }]
+        });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task EditVideo_WithTooManyChapters_ReturnsBadRequest()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+        var chapters = Enumerable.Range(0, 51).Select(i => new ChapterRequest { StartTime = i, Title = $"C{i}" }).ToList();
+
+        var result = await controller.EditVideo(clip.VideoId, new VideoRequest { Name = "Old Name", Chapters = chapters });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task EditVideo_CalledTwiceWithDifferentChapters_ReplacesThePreviousSet()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "Old Name");
+        var controller = CreateController(userId: 1);
+
+        await controller.EditVideo(clip.VideoId, new VideoRequest
+        {
+            Name = "Old Name",
+            Chapters = [new ChapterRequest { StartTime = 0, Title = "Original" }]
+        });
+        var result = await controller.EditVideo(clip.VideoId, new VideoRequest
+        {
+            Name = "Old Name",
+            Chapters = [new ChapterRequest { StartTime = 10, Title = "Replaced" }]
+        });
+
+        var dto = Assert.IsType<VideoClipDto>(result.Value);
+        var chapter = Assert.Single(dto.Chapters);
+        Assert.Equal("Replaced", chapter.Title);
+        Assert.Equal(1, await _context.VideoChapters.CountAsync());
+    }
+
+    [Fact]
+    public async Task GetVideo_IncludesChapters()
+    {
+        var (_, clip) = await SeedVideoAsync(1, "My Video");
+        _context.VideoChapters.Add(new VideoChapter { VideoClipId = clip.Id, StartTime = 5, Title = "Intro" });
+        await _context.SaveChangesAsync();
+        var controller = CreateController();
+
+        var result = await controller.GetVideo(clip.VideoId);
+
+        var dto = Assert.IsType<VideoClipDto>(result.Value);
+        var chapter = Assert.Single(dto.Chapters);
+        Assert.Equal("Intro", chapter.Title);
+        Assert.Equal(5, chapter.StartTime);
+    }
+
+    [Fact]
     public async Task RetryVideo_WithErrorJob_ResetsJobToPending()
     {
         var (_, clip) = await SeedVideoAsync(1, "My Video");

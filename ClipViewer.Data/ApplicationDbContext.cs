@@ -8,6 +8,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<VideoClip> VideoClips { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<VideoConversionJob> VideoConversionJobs { get; set; } = null!;
+    public DbSet<VideoChapter> VideoChapters { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +76,25 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(e => e.VideoClipId);
             // Serves the worker's polling query: WHERE Status = 'Pending' ORDER BY CreatedAt
             entity.HasIndex(e => new { e.Status, e.CreatedAt });
+        });
+
+        // Configure VideoChapter entity
+        modelBuilder.Entity<VideoChapter>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VideoClipId).IsRequired();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.StartTime).IsRequired();
+
+            // Configure relationship with VideoClip - chapters are edited/replaced as a whole
+            // list alongside the rest of the video's metadata (see VideosController.EditVideo),
+            // so a required, cascade-deleted child collection.
+            entity.HasOne(c => c.VideoClip)
+                .WithMany(v => v.Chapters)
+                .HasForeignKey(c => c.VideoClipId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.VideoClipId);
         });
     }
 

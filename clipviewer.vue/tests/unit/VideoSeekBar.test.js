@@ -108,4 +108,46 @@ describe('VideoSeekBar', () => {
     expect(wrapper.find('.overflow-hidden.rounded.border-white\\/20').exists()).toBe(false)
     expect(wrapper.text()).toContain(formatDuration(50))
   })
+
+  it('renders a divider for each chapter after the start, but not one at 0:00', () => {
+    const chapters = [
+      { startTime: 0, title: 'Intro' },
+      { startTime: 40, title: 'Middle' },
+      { startTime: 80, title: 'End' },
+    ]
+    const wrapper = mount(VideoSeekBar, { props: { currentTime: 0, duration: 100, bufferedEnd: 0, chapters } })
+
+    const dividers = wrapper.findAll('.bg-black\\/50')
+    expect(dividers).toHaveLength(2)
+    expect(dividers[0].attributes('style')).toContain('left: 40%')
+    expect(dividers[1].attributes('style')).toContain('left: 80%')
+  })
+
+  it("shows the hovered chapter's title above the time in the tooltip", async () => {
+    const chapters = [
+      { startTime: 0, title: 'Intro' },
+      { startTime: 50, title: 'The good part' },
+    ]
+    const wrapper = mount(VideoSeekBar, { props: { currentTime: 0, duration: 100, bufferedEnd: 0, chapters } })
+    const track = stubTrackRect(wrapper, { left: 0, width: 200 })
+
+    // hoverRatio 0.75 -> hoverTime 75s, which falls after the second chapter's 50s start
+    track.dispatchEvent(new PointerEvent('pointermove', { clientX: 150, pointerId: 1, bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('The good part')
+    expect(wrapper.text()).toContain(formatDuration(75))
+  })
+
+  it('does not show a chapter title in the tooltip before the first chapter starts', async () => {
+    const chapters = [{ startTime: 50, title: 'The good part' }]
+    const wrapper = mount(VideoSeekBar, { props: { currentTime: 0, duration: 100, bufferedEnd: 0, chapters } })
+    const track = stubTrackRect(wrapper, { left: 0, width: 200 })
+
+    // hoverRatio 0.25 -> hoverTime 25s, before the only chapter starts
+    track.dispatchEvent(new PointerEvent('pointermove', { clientX: 50, pointerId: 1, bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).not.toContain('The good part')
+  })
 })

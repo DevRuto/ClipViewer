@@ -40,6 +40,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  chapters: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['loaded'])
@@ -406,6 +410,7 @@ function onKeydown(event) {
             :duration="duration"
             :buffered-end="bufferedEnd"
             :scrub-sprite="scrubSprite"
+            :chapters="chapters"
             @seek="seekTo"
             @scrub-start="holdControls"
             @scrub-end="scheduleHide"

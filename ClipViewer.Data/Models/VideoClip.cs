@@ -29,6 +29,7 @@ public class VideoClip
     public bool Unlisted { get; set; }
     public long SizeBytes { get; set; }
     public List<string> Tags { get; set; } = [];
+    public List<VideoChapter> Chapters { get; set; } = [];
 
     // User relationship
     [Required]

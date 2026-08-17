@@ -19,6 +19,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  chapters: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['seek', 'scrub-start', 'scrub-end'])
@@ -31,6 +35,24 @@ const spriteManifest = ref(null)
 const progressRatio = computed(() => (props.duration > 0 ? clampRatio(props.currentTime / props.duration) : 0))
 const bufferedRatio = computed(() => (props.duration > 0 ? clampRatio(props.bufferedEnd / props.duration) : 0))
 const hoverTime = computed(() => (hoverRatio.value === null ? null : hoverRatio.value * props.duration))
+
+const sortedChapters = computed(() => [...props.chapters].sort((a, b) => a.startTime - b.startTime))
+
+// Dividers only make sense strictly between chapters - a marker at 0:00 would just sit on the
+// track's own left edge.
+const chapterDividers = computed(() => sortedChapters.value.filter((c) => c.startTime > 0))
+
+// The chapter whose span the current hover position falls into, shown alongside the time in the
+// tooltip - mirrors how YouTube's chapter tooltip works.
+const hoverChapter = computed(() => {
+  if (hoverTime.value === null) return null
+  let match = null
+  for (const chapter of sortedChapters.value) {
+    if (chapter.startTime > hoverTime.value) break
+    match = chapter
+  }
+  return match
+})
 
 // Fetches the sprite's JSON manifest (see Worker's GenerateScrubSprite) once per video. A stale
 // in-flight fetch for a previous scrubSprite URL is dropped if the prop changes again before it
@@ -135,7 +157,8 @@ function onPointerLeave() {
         class="overflow-hidden rounded border border-white/20 bg-black shadow-lg"
         :style="previewTileStyle"
       ></div>
-      <div class="rounded bg-black/90 px-1.5 py-0.5 text-xs whitespace-nowrap text-white">
+      <div class="flex flex-col items-center gap-0.5 rounded bg-black/90 px-1.5 py-0.5 text-xs whitespace-nowrap text-white">
+        <span v-if="hoverChapter" class="font-medium">{{ hoverChapter.title }}</span>
         {{ formatDuration(hoverTime) }}
       </div>
     </div>
@@ -143,6 +166,12 @@ function onPointerLeave() {
     <div class="relative h-1 w-full rounded-full bg-white/25 transition-[height] group-hover/seek:h-1.5">
       <div class="absolute inset-y-0 left-0 rounded-full bg-white/40" :style="{ width: `${bufferedRatio * 100}%` }" />
       <div class="absolute inset-y-0 left-0 rounded-full bg-primary" :style="{ width: `${progressRatio * 100}%` }" />
+      <div
+        v-for="chapter in chapterDividers"
+        :key="chapter.startTime"
+        class="pointer-events-none absolute inset-y-0 w-px bg-black/50"
+        :style="{ left: `${duration > 0 ? clampRatio(chapter.startTime / duration) * 100 : 0}%` }"
+      />
       <div
         class="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary opacity-0 shadow transition-opacity group-hover/seek:opacity-100"
         :class="{ 'opacity-100': isDragging }"

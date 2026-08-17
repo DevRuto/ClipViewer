@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ClipViewer.API.Models;
 using ClipViewer.API.Models.DTOs;
 using ClipViewer.Data;
+using ClipViewer.Data.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -75,6 +76,7 @@ public class VideosController(
     {
         var video = await context.VideoClips
             .Include(v => v.User)
+            .Include(v => v.Chapters)
             .FirstOrDefaultAsync(v => v.VideoId == videoId);
         if (video == null) return NotFound();
 
@@ -110,14 +112,35 @@ public class VideosController(
 
         var video = await context.VideoClips
             .Include(v => v.User)
+            .Include(v => v.Chapters)
             .FirstOrDefaultAsync(v => v.VideoId == videoId && v.UserId == userId);
 
         if (video == null) return NotFound();
+
+        var chapters = new List<VideoChapter>();
+        foreach (var raw in request.Chapters)
+        {
+            var title = raw.Title.Trim();
+            if (title.Length == 0) continue;
+            if (title.Length > 100)
+                return BadRequest("Chapter titles must be 100 characters or fewer");
+            if (raw.StartTime < 0)
+                return BadRequest("Chapter start time cannot be negative");
+            // Duration may not be known yet (e.g. the video is still processing) - only bound
+            // start times against it once it's actually set.
+            if (video.Duration > TimeSpan.Zero && raw.StartTime > video.Duration.TotalSeconds)
+                return BadRequest("Chapter start time cannot be past the end of the video");
+            chapters.Add(new VideoChapter { StartTime = raw.StartTime, Title = title });
+        }
+        if (chapters.Count > 50)
+            return BadRequest("A video may have at most 50 chapters");
 
         video.Name = request.Name;
         video.Unlisted = request.Unlisted;
         video.Description = request.Description;
         video.Tags = tags;
+        video.Chapters.Clear();
+        foreach (var chapter in chapters) video.Chapters.Add(chapter);
         await context.SaveChangesAsync();
 
         var latestJob = await context.VideoConversionJobs.OrderByDescending(job => job.CreatedAt)

@@ -24,6 +24,7 @@ public class VideoClipDto
     public int Progress { get; set; }
     public string? Status { get; set; }
     public List<string> Tags { get; set; } = [];
+    public List<ChapterDto> Chapters { get; set; } = [];
 
     // Add a static method to map from entity to DTO
     public static VideoClipDto FromEntity(
@@ -54,7 +55,8 @@ public class VideoClipDto
             Unlisted = entity.Unlisted,
             Progress = latestJob?.Progress ?? 0,
             Status = latestJob?.Status ?? "Pending",
-            Tags = entity.Tags
+            Tags = entity.Tags,
+            Chapters = entity.Chapters.OrderBy(c => c.StartTime).Select(ChapterDto.FromEntity).ToList()
         };
     }
 }

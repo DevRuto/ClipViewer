@@ -2,7 +2,7 @@
 import { ref, reactive, computed, nextTick, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import { formatDuration } from '@/composables/useDuration.js'
+import { formatDuration, durationToSeconds } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
 import { renderMarkdown } from '@/lib/markdown'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -45,10 +45,14 @@ import {
   EyeOff,
   Tag as TagIcon,
   X,
+  ChevronDown,
+  Plus,
 } from '@lucide/vue'
 
 const MAX_TAGS = 15
 const MAX_TAG_LENGTH = 30
+const MAX_CHAPTERS = 50
+const MAX_CHAPTER_TITLE_LENGTH = 100
 
 let toastTimeoutId = null
 let copiedIconTimeoutId = null
@@ -156,15 +160,77 @@ watch(
 // parent as a single combined update on Save - this avoids the previous per-field autosave
 // design where independent debounced watchers could race and silently clobber each other.
 const dialogOpen = ref(false)
-const draft = reactive({ name: '', description: '', tags: [], unlisted: false })
+const draft = reactive({ name: '', description: '', tags: [], chapters: [], unlisted: false })
 const newTag = ref('')
 const nameInputRef = ref(null)
+
+// Chapters -------------------------------------------------------------
+// Collapsed by default unless the video already has chapters, so the modal doesn't grow for the
+// common case where nobody's using the feature yet.
+const chaptersExpanded = ref(false)
+const chapterTimeErrors = reactive({})
+const chapterTitleRefs = new Map()
+let nextChapterKey = 0
+
+const videoDurationSeconds = computed(() => durationToSeconds(props.video.duration))
+const hasChapterTimeErrors = computed(() => Object.keys(chapterTimeErrors).length > 0)
+
+function setChapterTitleRef(key, el) {
+  if (el) chapterTitleRefs.set(key, el)
+  else chapterTitleRefs.delete(key)
+}
+
+function sortChapters() {
+  draft.chapters = [...draft.chapters].sort((a, b) => a.startTime - b.startTime)
+}
+
+function addChapterAt(time) {
+  if (draft.chapters.length >= MAX_CHAPTERS) return
+  const key = nextChapterKey++
+  draft.chapters = [...draft.chapters, { key, startTime: Math.max(0, Math.round(time)), title: '' }]
+  chaptersExpanded.value = true
+  sortChapters()
+  nextTick(() => chapterTitleRefs.get(key)?.$el?.focus())
+}
+
+function removeChapter(key) {
+  draft.chapters = draft.chapters.filter((c) => c.key !== key)
+  delete chapterTimeErrors[key]
+}
+
+// Parses "m:ss" / "h:mm:ss" strictly (unlike the lenient parseTimeToSeconds elsewhere), so a
+// malformed edit can be flagged inline instead of silently coercing to 0.
+function parseChapterTime(text) {
+  const parts = text.trim().split(':')
+  if (parts.length < 2 || parts.length > 3 || parts.some((p) => !/^\d+$/.test(p))) return null
+  const nums = parts.map(Number)
+  if (nums.slice(-2).some((n) => n > 59)) return null
+  return nums.length === 3 ? nums[0] * 3600 + nums[1] * 60 + nums[2] : nums[0] * 60 + nums[1]
+}
+
+function onChapterTimeChange(chapter, text) {
+  const seconds = parseChapterTime(text)
+  if (seconds === null || (videoDurationSeconds.value > 0 && seconds > videoDurationSeconds.value)) {
+    chapterTimeErrors[chapter.key] = true
+    return
+  }
+  delete chapterTimeErrors[chapter.key]
+  chapter.startTime = seconds
+  sortChapters()
+}
 
 function resetDraft() {
   draft.name = props.video.name
   draft.description = props.video.description || ''
   draft.tags = [...(props.video.tags || [])]
+  draft.chapters = (props.video.chapters || []).map((c) => ({
+    key: nextChapterKey++,
+    startTime: c.startTime,
+    title: c.title,
+  }))
   draft.unlisted = props.video.unlisted
+  chaptersExpanded.value = draft.chapters.length > 0
+  Object.keys(chapterTimeErrors).forEach((k) => delete chapterTimeErrors[k])
 }
 
 function setDialogOpen(value) {
@@ -208,12 +274,15 @@ function removeTag(tag) {
 
 function submitEdit() {
   const trimmed = draft.name.trim()
-  if (!trimmed) return
+  if (!trimmed || hasChapterTimeErrors.value) return
   emit('update-video', {
     ...props.video,
     name: trimmed,
     description: draft.description,
     tags: draft.tags,
+    chapters: draft.chapters
+      .filter((c) => c.title.trim().length > 0)
+      .map((c) => ({ startTime: c.startTime, title: c.title.trim() })),
     unlisted: draft.unlisted,
   })
 }
@@ -343,6 +412,63 @@ watch(
             />
           </div>
 
+          <div>
+            <button
+              type="button"
+              class="flex w-full items-center justify-between text-sm font-medium text-foreground"
+              @click="chaptersExpanded = !chaptersExpanded"
+            >
+              <span>
+                Chapters
+                <span v-if="draft.chapters.length" class="font-normal text-muted-foreground">({{ draft.chapters.length }})</span>
+              </span>
+              <ChevronDown class="size-4 text-muted-foreground transition-transform" :class="{ 'rotate-180': chaptersExpanded }" />
+            </button>
+
+            <div v-show="chaptersExpanded" class="mt-2 space-y-2">
+              <p v-if="draft.chapters.length === 0" class="text-xs text-muted-foreground">
+                No chapters yet — scrub to a moment in the video, then add one below.
+              </p>
+
+              <div v-for="chapter in draft.chapters" :key="chapter.key" class="flex items-center gap-2">
+                <Input
+                  class="h-8 w-20 shrink-0 text-center text-xs tabular-nums"
+                  :class="{ 'border-destructive text-destructive': chapterTimeErrors[chapter.key] }"
+                  :model-value="formatDuration(chapter.startTime)"
+                  aria-label="Chapter start time"
+                  @change="onChapterTimeChange(chapter, $event.target.value)"
+                />
+                <Input
+                  :ref="(el) => setChapterTitleRef(chapter.key, el)"
+                  v-model="chapter.title"
+                  class="h-8 flex-1 text-sm"
+                  placeholder="Chapter title"
+                  :maxlength="MAX_CHAPTER_TITLE_LENGTH"
+                />
+                <button
+                  type="button"
+                  class="shrink-0 text-muted-foreground hover:text-destructive"
+                  aria-label="Remove chapter"
+                  @click="removeChapter(chapter.key)"
+                >
+                  <X class="size-4" />
+                </button>
+              </div>
+
+              <Button
+                v-if="draft.chapters.length < MAX_CHAPTERS"
+                type="button"
+                variant="outline"
+                size="sm"
+                class="gap-1.5"
+                @click="addChapterAt(currentTime)"
+              >
+                <Plus class="size-3.5" />
+                Add chapter at {{ formatDuration(currentTime) }}
+              </Button>
+            </div>
+          </div>
+
           <MarkdownField v-model="draft.description" />
 
           <DialogFooter class="sm:justify-between">
@@ -373,7 +499,7 @@ watch(
               <Button type="button" variant="outline" :disabled="saving" @click="setDialogOpen(false)">
                 Cancel
               </Button>
-              <Button type="submit" :disabled="saving || !draft.name.trim()">
+              <Button type="submit" :disabled="saving || !draft.name.trim() || hasChapterTimeErrors">
                 <Loader2 v-if="saving" class="size-4 animate-spin" />
                 Save
               </Button>

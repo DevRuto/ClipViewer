@@ -197,6 +197,7 @@ async function updateVideo(updatedVideo) {
       name: updatedVideo.name,
       description: updatedVideo.description,
       tags: updatedVideo.tags,
+      chapters: updatedVideo.chapters,
     })
 
     if (response.status === 200) {
@@ -282,6 +283,7 @@ async function refreshVideo() {
             :src="videoSource"
             :placeholder="video.thumbnail"
             :scrub-sprite="video.scrubSprite"
+            :chapters="video.chapters"
             @loaded="onVideoLoaded"
           />
           <div

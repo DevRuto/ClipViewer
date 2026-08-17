@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDuration, parseTimeToSeconds } from '@/composables/useDuration.js'
+import { formatDuration, parseTimeToSeconds, durationToSeconds } from '@/composables/useDuration.js'
 
 describe('useDuration', () => {
   describe('formatDuration', () => {
@@ -51,6 +51,29 @@ describe('useDuration', () => {
     it('returns 0 for unsupported formats', () => {
       expect(parseTimeToSeconds('5')).toBe(0)
       expect(parseTimeToSeconds('1:2:3:4')).toBe(0)
+    })
+  })
+
+  describe('durationToSeconds', () => {
+    it('returns 0 for falsy input', () => {
+      expect(durationToSeconds(null)).toBe(0)
+      expect(durationToSeconds(undefined)).toBe(0)
+      expect(durationToSeconds(0)).toBe(0)
+    })
+
+    it('passes through a plain seconds number', () => {
+      expect(durationToSeconds(65)).toBe(65)
+      expect(durationToSeconds(3661)).toBe(3661)
+    })
+
+    it('parses dot-separated TimeSpan strings like 00:18:42.0000000', () => {
+      expect(durationToSeconds('00:18:42.0000000')).toBe(1122)
+      expect(durationToSeconds('00:00:20.2240000')).toBe(20)
+      expect(durationToSeconds('01:02:03.000')).toBe(3723)
+    })
+
+    it('returns 0 on invalid string format', () => {
+      expect(durationToSeconds('not-a-time')).toBe(0)
     })
   })
 })
