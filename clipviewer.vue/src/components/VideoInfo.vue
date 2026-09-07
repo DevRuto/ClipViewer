@@ -331,16 +331,6 @@ watch(
   <div class="p-4 sm:p-6">
     <!-- Title with edit toggle (owner) / plain read-only title (everyone) -->
     <div class="mb-1 flex items-center gap-2">
-      <Button
-        v-if="ownsVideo"
-        variant="ghost"
-        size="icon"
-        class="size-10 sm:size-9 text-muted-foreground"
-        aria-label="Edit video details"
-        @click="setDialogOpen(true)"
-      >
-        <Pencil class="size-5" />
-      </Button>
       <h1 class="flex-1 min-w-0 text-2xl font-bold break-words line-clamp-2 sm:line-clamp-3">
         {{ video.name }}
       </h1>
@@ -351,6 +341,17 @@ watch(
         <EyeOff class="size-3" />
         Unlisted
       </span>
+      <Button
+        v-if="ownsVideo"
+        variant="outline"
+        size="sm"
+        class="shrink-0 gap-1.5 text-muted-foreground"
+        aria-label="Edit video details"
+        @click="setDialogOpen(true)"
+      >
+        <Pencil class="size-4" />
+        <span class="hidden sm:inline">Edit</span>
+      </Button>
     </div>
 
     <!-- Edit modal (owner only) -->
