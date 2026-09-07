@@ -97,8 +97,8 @@ function toggleListPrefix() {
       class="resize-none"
     />
 
-    <p class="text-xs text-muted-foreground">Preview</p>
-    <div class="min-h-12 rounded-md border px-3 py-2 text-sm prose prose-sm max-w-none dark:prose-invert">
+    <p class="text-xs text-muted-foreground border-t pt-2">Preview</p>
+    <div class="min-h-8 text-sm prose prose-sm max-w-none dark:prose-invert">
       <div v-if="modelValue" v-html="previewHtml"></div>
       <p v-else class="text-muted-foreground">Nothing to preview yet.</p>
     </div>

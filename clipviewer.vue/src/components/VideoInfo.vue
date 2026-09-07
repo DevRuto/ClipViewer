@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, computed, nextTick, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import { api } from '@/services/api'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
@@ -160,6 +161,48 @@ const draft = reactive({ name: '', description: '', tags: [], chapters: [], unli
 const newTag = ref('')
 const nameInputRef = ref(null)
 
+// Tag suggestions ---------------------------------------------------------
+// Fetched once (lazily, on first dialog open) from the owner's own videos and aggregated
+// client-side into a frequency count - there's no dedicated backend endpoint for this, and
+// GET /api/videos?user= already returns everything needed.
+const tagSuggestions = ref([])
+const tagMenuOpen = ref(false)
+let tagSuggestionsFetched = false
+
+async function loadTagSuggestions() {
+  if (tagSuggestionsFetched || !user.value?.username) return
+  tagSuggestionsFetched = true
+  try {
+    const { data } = await api.get('/api/videos', { params: { user: user.value.username } })
+    const counts = new Map()
+    for (const v of data) {
+      for (const t of v.tags || []) {
+        counts.set(t, (counts.get(t) || 0) + 1)
+      }
+    }
+    tagSuggestions.value = [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+  } catch {
+    // Suggestions are a nice-to-have - the plain add-a-tag input still works without them.
+    tagSuggestionsFetched = false
+  }
+}
+
+const filteredTagSuggestions = computed(() => {
+  const query = newTag.value.trim().toLowerCase()
+  return tagSuggestions.value
+    .filter((t) => !draft.tags.includes(t.name) && (!query || t.name.toLowerCase().includes(query)))
+    .slice(0, 6)
+})
+
+function selectTagSuggestion(tagName) {
+  if (draft.tags.length >= MAX_TAGS || draft.tags.some((t) => t.toLowerCase() === tagName.toLowerCase())) return
+  draft.tags = [...draft.tags, tagName]
+  newTag.value = ''
+  tagMenuOpen.value = false
+}
+
 // Chapters editing is temporarily hidden (see VideoInfo's Edit dialog / VideoView) while the
 // interaction design is reworked - existing chapters still round-trip through resetDraft/submitEdit
 // untouched below, so no data is lost while the UI is off.
@@ -173,7 +216,11 @@ function resetDraft() {
 
 function setDialogOpen(value) {
   if (!value && props.saving) return // don't allow closing while a save is in flight
-  if (value) resetDraft()
+  if (value) {
+    resetDraft()
+    loadTagSuggestions()
+  }
+  tagMenuOpen.value = false
   dialogOpen.value = value
 }
 
@@ -306,7 +353,7 @@ watch(
 
     <!-- Edit modal (owner only) -->
     <Dialog v-if="ownsVideo" :open="dialogOpen" @update:open="setDialogOpen">
-      <DialogContent class="sm:max-w-lg">
+      <DialogContent class="sm:max-w-[44rem]">
         <DialogHeader>
           <div class="flex items-center justify-between gap-3 pr-6">
             <DialogTitle>Edit video</DialogTitle>
@@ -328,26 +375,52 @@ watch(
         <form class="space-y-4" @submit.prevent="submitEdit">
           <Input ref="nameInputRef" v-model="draft.name" placeholder="Video title" />
 
-          <div class="flex flex-wrap items-center gap-2">
-            <span
-              v-for="t in draft.tags"
-              :key="t"
-              data-testid="tag-chip"
-              class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
-            >
-              {{ t }}
-              <button type="button" class="hover:text-destructive" @click="removeTag(t)">
-                <X class="size-3" />
-              </button>
-            </span>
-            <Input
-              v-if="draft.tags.length < MAX_TAGS"
-              v-model="newTag"
-              placeholder="Add a tag..."
-              class="h-7 w-32 text-xs"
-              :maxlength="MAX_TAG_LENGTH"
-              @keydown.enter.prevent="addTag"
-            />
+          <div>
+            <div class="flex items-center justify-between text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <span>Tags</span>
+              <span :class="{ 'text-destructive': draft.tags.length >= MAX_TAGS }">{{ draft.tags.length }}/{{ MAX_TAGS }}</span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+              <span
+                v-for="t in draft.tags"
+                :key="t"
+                data-testid="tag-chip"
+                class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+              >
+                {{ t }}
+                <button type="button" class="hover:text-destructive" @click="removeTag(t)">
+                  <X class="size-3" />
+                </button>
+              </span>
+            </div>
+
+            <div v-if="draft.tags.length < MAX_TAGS" class="relative mt-2">
+              <Input
+                v-model="newTag"
+                placeholder="Search or add a tag..."
+                :maxlength="MAX_TAG_LENGTH"
+                @focus="tagMenuOpen = true"
+                @keydown.enter.prevent="addTag"
+                @keydown.escape="tagMenuOpen = false"
+                @blur="tagMenuOpen = false"
+              />
+              <div
+                v-if="tagMenuOpen && filteredTagSuggestions.length"
+                class="absolute z-10 mt-1 w-full max-h-36 overflow-y-auto rounded-md border bg-popover p-1 shadow-md"
+              >
+                <button
+                  v-for="s in filteredTagSuggestions"
+                  :key="s.name"
+                  type="button"
+                  class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                  @mousedown.prevent="selectTagSuggestion(s.name)"
+                >
+                  {{ s.name }}
+                  <span class="ml-auto text-xs text-muted-foreground">used {{ s.count }}&times;</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <MarkdownField v-model="draft.description" />

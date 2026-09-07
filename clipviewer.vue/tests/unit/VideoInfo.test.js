@@ -276,7 +276,7 @@ describe('VideoInfo', () => {
     const body = new DOMWrapper(document.body)
 
     await openEditModal(wrapper)
-    const tagInput = body.find('input[placeholder="Add a tag..."]')
+    const tagInput = body.find('input[placeholder="Search or add a tag..."]')
     await tagInput.setValue('funny')
     await tagInput.trigger('keydown.enter')
 
@@ -298,7 +298,7 @@ describe('VideoInfo', () => {
     const body = new DOMWrapper(document.body)
 
     await openEditModal(wrapper)
-    const tagInput = body.find('input[placeholder="Add a tag..."]')
+    const tagInput = body.find('input[placeholder="Search or add a tag..."]')
     await tagInput.setValue('funny')
     await tagInput.trigger('keydown.enter')
 
@@ -314,7 +314,7 @@ describe('VideoInfo', () => {
     const body = new DOMWrapper(document.body)
 
     await openEditModal(wrapper)
-    const tagInput = body.find('input[placeholder="Add a tag..."]')
+    const tagInput = body.find('input[placeholder="Search or add a tag..."]')
     await tagInput.setValue('a'.repeat(31))
     await tagInput.trigger('keydown.enter')
 
@@ -350,7 +350,7 @@ describe('VideoInfo', () => {
 
     await openEditModal(wrapper)
 
-    expect(body.find('input[placeholder="Add a tag..."]').exists()).toBe(false)
+    expect(body.find('input[placeholder="Search or add a tag..."]').exists()).toBe(false)
   })
 
   it('renders tags as links to the browse page when not editing', async () => {
