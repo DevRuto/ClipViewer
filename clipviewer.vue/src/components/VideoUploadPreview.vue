@@ -74,6 +74,7 @@ function clearVideoPreview() {
         ref="editBarRef"
         :video-duration="videoDuration"
         :video-player-ref="videoPlayerRef"
+        :video-url="props.videoUrl"
         @timestamps-change="onTimestampsChange"
       />
     </div>
