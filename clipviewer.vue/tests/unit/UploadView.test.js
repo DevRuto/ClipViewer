@@ -90,6 +90,11 @@ describe('UploadView', () => {
     api.post.mockResolvedValueOnce({ status: 202, data: { videoId: 'xyz789' } })
     const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile('my-video.mp4'))
+    // VideoUploadPreview is shallow-stubbed here, so its real EditBar never mounts to emit its
+    // own default (full-range) timestamps the way it would in the actual app - simulate that.
+    await wrapper
+      .findComponent(VideoUploadPreview)
+      .vm.$emit('timestamps-change', { startTime: 0, endTime: 42, videoDuration: 42 })
     await wrapper.find('button.flex-1').trigger('click')
     await flushPromises()
 
@@ -105,6 +110,9 @@ describe('UploadView', () => {
     api.post.mockRejectedValueOnce({ response: { data: { message: 'Server exploded' } } })
     const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
+    await wrapper
+      .findComponent(VideoUploadPreview)
+      .vm.$emit('timestamps-change', { startTime: 0, endTime: 42, videoDuration: 42 })
     await wrapper.find('button.flex-1').trigger('click')
     await flushPromises()
 
@@ -114,7 +122,6 @@ describe('UploadView', () => {
   it('guards against an incomplete timestamp range from the editor', async () => {
     const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
-    await wrapper.findComponent(VideoUploadPreview).vm.$emit('toggle-edit-mode')
     // Simulate a malformed/partial payload (endTime missing) reaching the parent.
     await wrapper.findComponent(VideoUploadPreview).vm.$emit('timestamps-change', { startTime: 5 })
     await wrapper.find('button.flex-1').trigger('click')
@@ -123,20 +130,34 @@ describe('UploadView', () => {
     expect(api.post).not.toHaveBeenCalled()
   })
 
-  it('includes trim timestamps in the upload URL when a partial clip range is set', async () => {
+  it('includes trim timestamps in the upload URL when a shorter-than-full clip range is set', async () => {
     api.post.mockResolvedValueOnce({ status: 202, data: { videoId: 'clip1' } })
     const wrapper = mountUploadView()
     await selectFile(wrapper, makeVideoFile())
-    await wrapper.findComponent(VideoUploadPreview).vm.$emit('toggle-edit-mode')
     await wrapper
       .findComponent(VideoUploadPreview)
-      .vm.$emit('timestamps-change', { startTime: 5, endTime: 15 })
+      .vm.$emit('timestamps-change', { startTime: 5, endTime: 15, videoDuration: 60 })
     await wrapper.find('button.flex-1').trigger('click')
     await flushPromises()
 
     const url = api.post.mock.calls[0][0]
     expect(url).toContain('startTime=5')
     expect(url).toContain('endTime=15')
+  })
+
+  it('omits trim timestamps from the upload URL when the full clip is selected', async () => {
+    api.post.mockResolvedValueOnce({ status: 202, data: { videoId: 'clip2' } })
+    const wrapper = mountUploadView()
+    await selectFile(wrapper, makeVideoFile())
+    await wrapper
+      .findComponent(VideoUploadPreview)
+      .vm.$emit('timestamps-change', { startTime: 0, endTime: 60, videoDuration: 60 })
+    await wrapper.find('button.flex-1').trigger('click')
+    await flushPromises()
+
+    const url = api.post.mock.calls[0][0]
+    expect(url).not.toContain('startTime')
+    expect(url).not.toContain('endTime')
   })
 
   it('clears the preview and revokes the object URL', async () => {

@@ -20,7 +20,6 @@ const uploadProgress = ref(0)
 const error = ref('')
 const dragOver = ref(false)
 const videoUrl = ref('')
-const isEditingMode = ref(false)
 const timestamps = ref(null)
 let uploadAbortController = null
 
@@ -74,7 +73,7 @@ async function uploadVideo() {
     return
   }
 
-  if (isEditingMode.value && (!timestamps.value || timestamps.value.startTime === undefined || timestamps.value.endTime === undefined)) {
+  if (!timestamps.value || timestamps.value.startTime === undefined || timestamps.value.endTime === undefined) {
     error.value = 'Please set valid start and end times for the clip'
     return
   }
@@ -86,17 +85,16 @@ async function uploadVideo() {
   try {
     let url = `/api/upload?name=${encodeURIComponent(videoName.value.trim())}`
 
-    // Add timestamps if in edit mode
-    // Format: startTime and endTime as seconds from beginning of video
+    // Only send a trim range if it's actually shorter than the source video - if the whole
+    // clip is selected there's nothing for the Worker to trim, so leave startTime/endTime off.
+    // Format: startTime and endTime as seconds from the beginning of the video.
     // Example: &startTime=30&endTime=120 (for a 30-90 second clip)
-    if (isEditingMode.value &&
-        timestamps.value &&
+    if (timestamps.value &&
         timestamps.value.startTime !== undefined &&
         timestamps.value.endTime !== undefined &&
         timestamps.value.startTime >= 0 &&
         timestamps.value.endTime > timestamps.value.startTime &&
-        !(timestamps.value.startTime === 0 && timestamps.value.endTime === Math.floor(timestamps.value.videoDuration))) {
-          // Skip adding timestamps if the entire video is being uploaded
+        timestamps.value.endTime - timestamps.value.startTime < Math.floor(timestamps.value.videoDuration)) {
           url += `&startTime=${timestamps.value.startTime}&endTime=${timestamps.value.endTime}`
     }
 
@@ -164,7 +162,7 @@ onUnmounted(() => {
     <div class="container mx-auto px-4 py-8">
       <h1 class="text-3xl font-bold mb-8">Upload New Clip</h1>
 
-      <div class="mx-auto" :class="isEditingMode ? 'max-w-7xl' : 'max-w-4xl'">
+      <div class="mx-auto max-w-7xl">
         <Card>
           <CardContent>
             <!-- File Drop Area -->
@@ -202,10 +200,8 @@ onUnmounted(() => {
               v-else
               :video-url="videoUrl"
               :file="file"
-              :is-editing-mode="isEditingMode"
               @clear-preview="clearVideoPreview"
               @timestamps-change="onTimestampsChange"
-              @toggle-edit-mode="isEditingMode = !isEditingMode"
             />
 
             <!-- Video Name Input -->
@@ -232,10 +228,10 @@ onUnmounted(() => {
             <div class="mt-6 flex gap-3">
               <Button
                 class="flex-1"
-                :disabled="isUploading || !file || (isEditingMode && !timestamps)"
+                :disabled="isUploading || !file"
                 @click="uploadVideo"
               >
-                {{ isUploading ? 'Uploading...' : (isEditingMode ? 'Upload Clip' : 'Upload Video') }}
+                {{ isUploading ? 'Uploading...' : 'Upload Clip' }}
               </Button>
               <Button v-if="isUploading" variant="outline" @click="cancelUpload">Cancel</Button>
               <Button v-else variant="outline" @click="router.back()">Cancel</Button>

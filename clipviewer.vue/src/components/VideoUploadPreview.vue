@@ -3,8 +3,6 @@ import { ref } from 'vue'
 import EditBar from './EditBar.vue'
 import VideoPlayer from './VideoPlayer.vue'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 
 const props = defineProps({
   videoUrl: {
@@ -14,17 +12,12 @@ const props = defineProps({
   file: {
     type: File,
     default: null
-  },
-  isEditingMode: {
-    type: Boolean,
-    default: false
   }
 })
 
-const emit = defineEmits(['clear-preview', 'timestamps-change', 'toggle-edit-mode'])
+const emit = defineEmits(['clear-preview', 'timestamps-change'])
 
 const videoDuration = ref(0)
-const editBarRef = ref(null)
 const videoPlayerRef = ref(null)
 
 function onVideoLoaded() {
@@ -44,43 +37,29 @@ function clearVideoPreview() {
 
 <template>
   <div class="mt-6">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="text-lg font-medium">
-        {{ isEditingMode ? 'Clip Editor' : 'Video Preview' }}
+    <div class="flex items-center justify-between gap-3 mb-3">
+      <h3 class="text-lg font-medium truncate">
+        {{ props.file?.name }}
+        <span class="text-sm font-normal text-muted-foreground">
+          ({{ (props.file?.size / 1024 / 1024).toFixed(2) }} MB)
+        </span>
       </h3>
-      <Button variant="link" size="sm" class="text-destructive px-0" @click="clearVideoPreview">
+      <Button variant="link" size="sm" class="text-destructive px-0 shrink-0" @click="clearVideoPreview">
         Clear Preview
       </Button>
     </div>
 
-    <div
-      class="relative aspect-video overflow-hidden rounded-lg bg-black"
-      :class="[isEditingMode ? 'max-h-[70vh] max-w-7xl mx-auto' : 'max-h-96']"
-    >
+    <div class="relative aspect-video max-h-[70vh] max-w-7xl mx-auto overflow-hidden rounded-lg bg-black">
       <VideoPlayer ref="videoPlayerRef" :src="props.videoUrl" @loaded="onVideoLoaded" />
     </div>
 
-    <!-- Edit Bar with Toggle -->
     <div class="mt-4">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <Switch id="editMode" :model-value="isEditingMode" @update:model-value="emit('toggle-edit-mode')" />
-          <Label for="editMode" class="cursor-pointer">Edit Mode</Label>
-        </div>
-      </div>
-
       <EditBar
-        v-if="isEditingMode"
-        ref="editBarRef"
         :video-duration="videoDuration"
         :video-player-ref="videoPlayerRef"
         :video-url="props.videoUrl"
         @timestamps-change="onTimestampsChange"
       />
     </div>
-
-    <p class="mt-2 text-sm text-muted-foreground">
-      {{ props.file?.name }} ({{ (props.file?.size / 1024 / 1024).toFixed(2) }} MB)
-    </p>
   </div>
 </template>

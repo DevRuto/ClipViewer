@@ -1,10 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { formatDuration, parseTimeToSeconds } from '@/composables/useDuration.js'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ref, computed, watch } from 'vue'
+import { formatDuration } from '@/composables/useDuration.js'
 
 const props = defineProps({
   videoDuration: {
@@ -23,72 +19,44 @@ const props = defineProps({
 
 const emit = defineEmits(['timestamps-change'])
 
-const startTime = ref('0:00')
-const endTime = ref('')
-
 // The minimum distance (in seconds) a drag on the trim bar is allowed to leave between the
-// start and end handles, so they can't be dragged past/on top of each other.
-const MIN_GAP_SECONDS = 0.5
+// start and end handles, so they can't be dragged past/on top of each other. Whole seconds
+// since that's also the backend's precision (UploadController takes int? start/endTime).
+const MIN_GAP_SECONDS = 1
 const FILMSTRIP_TILE_COUNT = 20
 
-const startSeconds = computed(() => parseTimeToSeconds(startTime.value))
-const endSeconds = computed(() => parseTimeToSeconds(endTime.value))
-
-const timestampsValid = computed(() => {
-  const start = startSeconds.value
-  const end = endSeconds.value
-
-  return startTime.value && endTime.value &&
-         start >= 0 && end > 0 &&
-         start < end &&
-         end <= props.videoDuration
-})
+// The trim bar is the only way to set these - always a clamped, valid range by construction,
+// so there's no invalid-timestamp state to guard against here.
+const start = ref(0)
+const end = ref(0)
 
 function clampPercent(value) {
   return Math.min(100, Math.max(0, value))
 }
 
 const startPercent = computed(() =>
-  props.videoDuration > 0 ? clampPercent((startSeconds.value / props.videoDuration) * 100) : 0
+  props.videoDuration > 0 ? clampPercent((start.value / props.videoDuration) * 100) : 0
 )
 const endPercent = computed(() =>
-  props.videoDuration > 0 ? clampPercent((endSeconds.value / props.videoDuration) * 100) : 100
+  props.videoDuration > 0 ? clampPercent((end.value / props.videoDuration) * 100) : 100
 )
 
-function onTimeInput() {
-  if (timestampsValid.value) {
-    emit('timestamps-change', { startTime: startSeconds.value, endTime: endSeconds.value })
-  } else {
-    emit('timestamps-change', null)
-  }
+function emitChange() {
+  emit('timestamps-change', { startTime: start.value, endTime: end.value })
 }
 
-function setStartTime() {
-  if (props.videoPlayerRef) {
-    startTime.value = formatDuration(props.videoPlayerRef.currentTime)
-  }
-}
-
-function setEndTime() {
-  if (props.videoPlayerRef) {
-    endTime.value = formatDuration(props.videoPlayerRef.currentTime)
-  }
-}
-
-defineExpose({
-  setStartTime,
-  setEndTime
-})
-
-// The shadcn Input's v-model updates asynchronously (via VueUse's useVModel), so an @input
-// listener on the Input itself would read startTime/endTime before they've actually changed.
-// Watching the refs directly guarantees onTimeInput only runs once they hold the new value.
-watch([startTime, endTime], onTimeInput)
-
-onMounted(() => {
-  endTime.value = formatDuration(props.videoDuration)
-  onTimeInput()
-})
+// videoDuration starts out at 0 and only becomes known once the preview video's metadata has
+// loaded, which can happen after Edit Mode is already toggled on - so this can't just be an
+// onMounted default, it has to react to the prop arriving (or changing) later too.
+watch(
+  () => props.videoDuration,
+  (duration) => {
+    start.value = 0
+    end.value = Math.floor(duration)
+    emitChange()
+  },
+  { immediate: true }
+)
 
 // ---- Trim bar dragging ----
 // A single in-flight drag, captured via Pointer Events so the handle keeps tracking the
@@ -117,30 +85,30 @@ function startDrag(mode, event) {
           mode,
           target,
           pointerId: event.pointerId,
-          width: endSeconds.value - startSeconds.value,
-          grabOffset: ratioFromClientX(event.clientX) * props.videoDuration - startSeconds.value,
+          width: end.value - start.value,
+          grabOffset: Math.round(ratioFromClientX(event.clientX) * props.videoDuration) - start.value,
         }
       : { mode, target, pointerId: event.pointerId }
 }
 
 function onDragMove(event) {
   if (!drag) return
-  const t = ratioFromClientX(event.clientX) * props.videoDuration
+  const maxSeconds = Math.floor(props.videoDuration)
+  const t = Math.round(ratioFromClientX(event.clientX) * props.videoDuration)
 
   if (drag.mode === 'start') {
-    const clamped = Math.max(0, Math.min(t, endSeconds.value - MIN_GAP_SECONDS))
-    startTime.value = formatDuration(clamped)
-    seekPreview(clamped)
+    start.value = Math.max(0, Math.min(t, end.value - MIN_GAP_SECONDS))
+    seekPreview(start.value)
   } else if (drag.mode === 'end') {
-    const clamped = Math.min(props.videoDuration, Math.max(t, startSeconds.value + MIN_GAP_SECONDS))
-    endTime.value = formatDuration(clamped)
-    seekPreview(clamped)
+    end.value = Math.min(maxSeconds, Math.max(t, start.value + MIN_GAP_SECONDS))
+    seekPreview(end.value)
   } else if (drag.mode === 'range') {
-    const clamped = Math.max(0, Math.min(props.videoDuration - drag.width, t - drag.grabOffset))
-    startTime.value = formatDuration(clamped)
-    endTime.value = formatDuration(clamped + drag.width)
+    const clamped = Math.max(0, Math.min(maxSeconds - drag.width, t - drag.grabOffset))
+    start.value = clamped
+    end.value = clamped + drag.width
     seekPreview(clamped)
   }
+  emitChange()
 }
 
 function endDrag() {
@@ -193,8 +161,8 @@ async function generateFilmstrip() {
       tiles.value = [...captured, ...Array(FILMSTRIP_TILE_COUNT - captured.length).fill(null)]
     }
   } catch {
-    // No filmstrip preview available (e.g. an unsupported codec) - the numeric start/end
-    // fields and drag handles still work without it.
+    // No filmstrip preview available (e.g. an unsupported codec) - the drag handles still
+    // work without it.
   }
 }
 
@@ -202,11 +170,12 @@ watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediat
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex items-baseline justify-between">
-      <Label>Trim clip</Label>
-      <span class="text-sm text-muted-foreground">
-        Selected <span class="font-medium text-foreground">{{ formatDuration(Math.max(0, endSeconds - startSeconds)) }}</span>
+  <div class="space-y-3">
+    <div class="flex items-baseline justify-between text-sm">
+      <span class="font-medium">Trim clip</span>
+      <span class="text-muted-foreground">
+        Selected
+        <span class="font-medium text-foreground tabular-nums">{{ formatDuration(Math.max(0, end - start)) }}</span>
         of {{ formatDuration(videoDuration) }}
       </span>
     </div>
@@ -244,7 +213,7 @@ watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediat
         aria-label="Start time"
         :aria-valuemin="0"
         :aria-valuemax="videoDuration"
-        :aria-valuenow="startSeconds"
+        :aria-valuenow="start"
         :style="{ left: startPercent + '%' }"
         @pointerdown="startDrag('start', $event)"
         @pointermove="onDragMove"
@@ -259,7 +228,7 @@ watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediat
         aria-label="End time"
         :aria-valuemin="0"
         :aria-valuemax="videoDuration"
-        :aria-valuenow="endSeconds"
+        :aria-valuenow="end"
         :style="{ left: endPercent + '%' }"
         @pointerdown="startDrag('end', $event)"
         @pointermove="onDragMove"
@@ -270,33 +239,9 @@ watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediat
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="space-y-2">
-        <Label>Start Time</Label>
-        <div class="flex gap-2">
-          <Input v-model="startTime" type="text" placeholder="0:00" />
-          <Button type="button" title="Set to current time" @click="setStartTime">Set</Button>
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <Label>End Time</Label>
-        <div class="flex gap-2">
-          <Input v-model="endTime" type="text" placeholder="1:00" />
-          <Button type="button" title="Set to current time" @click="setEndTime">Set</Button>
-        </div>
-      </div>
+    <div class="flex items-center justify-between text-sm text-muted-foreground">
+      <span>Start <span class="font-medium text-foreground tabular-nums">{{ formatDuration(start) }}</span></span>
+      <span>End <span class="font-medium text-foreground tabular-nums">{{ formatDuration(end) }}</span></span>
     </div>
-
-    <div class="text-sm text-muted-foreground">
-      <p>Format: MM:SS or H:MM:SS</p>
-      <p>Video duration: {{ formatDuration(videoDuration) }}</p>
-    </div>
-
-    <Alert v-if="startTime && endTime && !timestampsValid" variant="destructive">
-      <AlertDescription>
-        Invalid timestamps. Make sure start time is before end time and within video duration.
-      </AlertDescription>
-    </Alert>
   </div>
 </template>
