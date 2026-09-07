@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useTagColor } from '@/composables/useTagColor.js'
 import { api } from '@/services/api'
 import ClipList from '@/components/ClipList.vue'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import { Plus, Tag as TagIcon, X } from '@lucide/vue'
 const route = useRoute()
 const router = useRouter()
 const { user, isAuthenticated } = useAuth()
+const { tagColorClasses, tagColorSolidClasses } = useTagColor()
 
 const isBrowsePage = ref(false)
 const username = ref('')
@@ -89,11 +91,12 @@ watch(
           <div v-if="availableTags.length || tag" class="mb-4 flex flex-wrap items-center gap-2">
             <span
               v-if="tag"
-              class="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+              :class="tagColorSolidClasses(tag)"
+              class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
             >
               <TagIcon class="size-3" />
               {{ tag }}
-              <button type="button" class="hover:text-destructive" @click="clearTag">
+              <button type="button" class="hover:opacity-75" @click="clearTag">
                 <X class="size-3" />
               </button>
             </span>
@@ -101,7 +104,8 @@ watch(
               v-for="t in availableTags.filter((t) => t !== tag)"
               :key="t"
               type="button"
-              class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+              :class="tagColorClasses(t)"
+              class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium hover:opacity-75 transition-opacity"
               @click="selectTag(t)"
             >
               <TagIcon class="size-3" />

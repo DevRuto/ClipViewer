@@ -5,6 +5,7 @@ import { api } from '@/services/api'
 import { useAuth } from '@/composables/useAuth'
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
+import { useTagColor } from '@/composables/useTagColor.js'
 import { renderMarkdown } from '@/lib/markdown'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -86,6 +87,7 @@ function flashCopiedIcon(variant) {
 
 const { user } = useAuth()
 const { stringToColor, getContrastColor } = useAuthorColor()
+const { tagColorClasses } = useTagColor()
 const ownsVideo = computed(() => user.value?.username === props.video.author)
 const authorColor = stringToColor(props.video.author)
 const textColor = getContrastColor(authorColor)
@@ -386,7 +388,8 @@ watch(
                 v-for="t in draft.tags"
                 :key="t"
                 data-testid="tag-chip"
-                class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                :class="tagColorClasses(t)"
+                class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
               >
                 {{ t }}
                 <button type="button" class="hover:text-destructive" @click="removeTag(t)">
@@ -522,7 +525,8 @@ watch(
         v-for="t in video.tags || []"
         :key="t"
         :to="`/browse?tag=${encodeURIComponent(t)}`"
-        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+        :class="tagColorClasses(t)"
+        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium hover:opacity-75 transition-opacity"
       >
         <TagIcon class="size-3" />
         {{ t }}
