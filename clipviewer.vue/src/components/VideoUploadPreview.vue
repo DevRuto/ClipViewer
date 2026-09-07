@@ -58,6 +58,7 @@ function clearVideoPreview() {
         :video-duration="videoDuration"
         :video-player-ref="videoPlayerRef"
         :video-url="props.videoUrl"
+        :video-file-size="props.file?.size"
         @timestamps-change="onTimestampsChange"
       />
     </div>

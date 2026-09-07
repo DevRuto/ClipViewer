@@ -14,6 +14,10 @@ const props = defineProps({
   videoUrl: {
     type: String,
     default: ''
+  },
+  videoFileSize: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -121,15 +125,29 @@ function endDrag() {
 // Renders real frames from the dropped clip onto the trim bar (the same idea as the Worker's
 // scrub-sprite on the video page) using a detached <video> + canvas so it never disturbs the
 // visible preview player's own playback position.
+// Above this, the per-tile seek-and-decode loop below gets slow and memory-hungry enough
+// (a second full decoder pipeline on top of the visible preview player) that it's not worth
+// taxing the browser for what's ultimately a cosmetic scrubbing aid - the drag handles work
+// fine without it.
+const FILMSTRIP_MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024 // 500MB
+
 const tiles = ref(Array(FILMSTRIP_TILE_COUNT).fill(null))
 const filmstripProgress = ref(0)
+const filmstripUnavailable = ref(false)
 let filmstripToken = 0
 
 async function generateFilmstrip() {
   const token = ++filmstripToken
   tiles.value = Array(FILMSTRIP_TILE_COUNT).fill(null)
   filmstripProgress.value = 0
+  filmstripUnavailable.value = false
   if (!props.videoUrl || !props.videoDuration) return
+
+  if (props.videoFileSize > FILMSTRIP_MAX_FILE_SIZE_BYTES) {
+    filmstripProgress.value = 100
+    filmstripUnavailable.value = true
+    return
+  }
 
   try {
     const video = document.createElement('video')
@@ -166,11 +184,14 @@ async function generateFilmstrip() {
   } catch {
     // No filmstrip preview available (e.g. an unsupported codec) - the drag handles still
     // work without it. Count it as "done" so the loading overlay doesn't spin forever.
-    if (token === filmstripToken) filmstripProgress.value = 100
+    if (token === filmstripToken) {
+      filmstripProgress.value = 100
+      filmstripUnavailable.value = true
+    }
   }
 }
 
-watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediate: true })
+watch(() => [props.videoUrl, props.videoDuration, props.videoFileSize], generateFilmstrip, { immediate: true })
 </script>
 
 <template>
@@ -193,7 +214,7 @@ watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediat
           v-for="(tile, index) in tiles"
           :key="index"
           class="flex-1 border-r border-white/10 bg-cover bg-center last:border-r-0"
-          :class="{ 'animate-pulse bg-white/10': !tile }"
+          :class="{ 'animate-pulse bg-white/10': !tile && !filmstripUnavailable }"
           :style="tile ? { backgroundImage: `url(${tile})` } : undefined"
         />
       </div>
@@ -206,6 +227,12 @@ watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediat
         class="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center bg-black/50 text-xs font-medium tabular-nums text-white"
       >
         Loading preview {{ filmstripProgress }}%
+      </div>
+      <div
+        v-else-if="filmstripUnavailable"
+        class="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center text-[11px] text-white/50"
+      >
+        Preview unavailable for this file
       </div>
 
       <div

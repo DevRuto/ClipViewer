@@ -80,6 +80,43 @@ describe('EditBar', () => {
     vi.restoreAllMocks()
   })
 
+  it('skips filmstrip generation entirely for very large files', async () => {
+    const createElementSpy = vi.spyOn(document, 'createElement')
+    const wrapper = mount(EditBar, {
+      props: {
+        videoDuration: 10,
+        videoUrl: 'blob:mock-video',
+        videoFileSize: 2 * 1024 * 1024 * 1024, // 2GB
+      },
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).toContain('Preview unavailable for this file')
+    expect(wrapper.text()).not.toContain('Loading preview')
+    // No offscreen <video>/<canvas> should have been created to attempt a capture.
+    expect(createElementSpy).not.toHaveBeenCalledWith('video')
+    expect(createElementSpy).not.toHaveBeenCalledWith('canvas')
+
+    createElementSpy.mockRestore()
+  })
+
+  it('still generates the filmstrip for a file under the size limit', async () => {
+    stubFilmstripCapture()
+    const wrapper = mount(EditBar, {
+      props: {
+        videoDuration: 10,
+        videoUrl: 'blob:mock-video',
+        videoFileSize: 100 * 1024 * 1024, // 100MB
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).not.toContain('Loading preview')
+    })
+    expect(wrapper.text()).not.toContain('Preview unavailable')
+    vi.restoreAllMocks()
+  })
+
   it('adopts the full duration once it arrives, even if Edit Mode was toggled on before the video finished loading', async () => {
     // videoDuration starts at 0 until the preview video's metadata loads - mirrors mounting
     // EditBar while that's still in flight.
