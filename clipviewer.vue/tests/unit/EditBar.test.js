@@ -16,6 +16,38 @@ function pointer(el, type, clientX) {
   return el.element.dispatchEvent(new MouseEvent(type, { clientX, button: 0, bubbles: true, cancelable: true }))
 }
 
+// jsdom doesn't actually decode video or implement canvas, so generateFilmstrip's offscreen
+// <video>/<canvas> pair is stubbed here to drive its loadedmetadata -> seek-per-tile -> drawImage
+// loop deterministically: setting currentTime synchronously fires a 'seeked' event back, and
+// getContext/toDataURL are faked since jsdom has no canvas backend to call through to.
+function stubFilmstripCapture() {
+  const realCreateElement = document.createElement.bind(document)
+  vi.spyOn(document, 'createElement').mockImplementation((tag) => {
+    if (tag === 'video') {
+      const el = realCreateElement('video')
+      Object.defineProperty(el, 'duration', { value: 10, configurable: true })
+      Object.defineProperty(el, 'videoWidth', { value: 16, configurable: true })
+      Object.defineProperty(el, 'videoHeight', { value: 9, configurable: true })
+      Object.defineProperty(el, 'currentTime', {
+        get: () => 0,
+        set: () => {
+          queueMicrotask(() => el.dispatchEvent(new Event('seeked')))
+        },
+        configurable: true,
+      })
+      queueMicrotask(() => el.dispatchEvent(new Event('loadedmetadata')))
+      return el
+    }
+    if (tag === 'canvas') {
+      const el = realCreateElement('canvas')
+      el.getContext = () => ({ drawImage: () => {} })
+      el.toDataURL = () => 'data:image/jpeg;base64,fake'
+      return el
+    }
+    return realCreateElement(tag)
+  })
+}
+
 describe('EditBar', () => {
   it('on mount, defaults end time to the full video duration and emits a valid range', async () => {
     const wrapper = mount(EditBar, {
@@ -29,6 +61,23 @@ describe('EditBar', () => {
     expect(wrapper.text()).toContain('Selected 2:00 of 2:00')
     expect(wrapper.text()).toContain('Start 0:00')
     expect(wrapper.text()).toContain('End 2:00')
+  })
+
+  it('shows filmstrip loading progress and hides it once every tile is captured', async () => {
+    stubFilmstripCapture()
+    const wrapper = mount(EditBar, {
+      props: { videoDuration: 10, videoUrl: 'blob:mock-video' },
+    })
+
+    expect(wrapper.text()).toContain('Loading preview 0%')
+
+    // Once every tile is captured, filmstripProgress hits 100 and the v-if that gates the
+    // overlay flips in the same render pass - so "100%" is never actually painted, only the
+    // overlay's disappearance is observable.
+    await vi.waitFor(() => {
+      expect(wrapper.text()).not.toContain('Loading preview')
+    })
+    vi.restoreAllMocks()
   })
 
   it('adopts the full duration once it arrives, even if Edit Mode was toggled on before the video finished loading', async () => {

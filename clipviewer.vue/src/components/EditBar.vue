@@ -122,11 +122,13 @@ function endDrag() {
 // scrub-sprite on the video page) using a detached <video> + canvas so it never disturbs the
 // visible preview player's own playback position.
 const tiles = ref(Array(FILMSTRIP_TILE_COUNT).fill(null))
+const filmstripProgress = ref(0)
 let filmstripToken = 0
 
 async function generateFilmstrip() {
   const token = ++filmstripToken
   tiles.value = Array(FILMSTRIP_TILE_COUNT).fill(null)
+  filmstripProgress.value = 0
   if (!props.videoUrl || !props.videoDuration) return
 
   try {
@@ -159,10 +161,12 @@ async function generateFilmstrip() {
       ctx.drawImage(video, 0, 0, tileWidth, tileHeight)
       captured.push(canvas.toDataURL('image/jpeg', 0.6))
       tiles.value = [...captured, ...Array(FILMSTRIP_TILE_COUNT - captured.length).fill(null)]
+      filmstripProgress.value = Math.round((captured.length / FILMSTRIP_TILE_COUNT) * 100)
     }
   } catch {
     // No filmstrip preview available (e.g. an unsupported codec) - the drag handles still
-    // work without it.
+    // work without it. Count it as "done" so the loading overlay doesn't spin forever.
+    if (token === filmstripToken) filmstripProgress.value = 100
   }
 }
 
@@ -196,6 +200,13 @@ watch(() => [props.videoUrl, props.videoDuration], generateFilmstrip, { immediat
 
       <div class="pointer-events-none absolute inset-y-0 left-0 bg-black/60" :style="{ width: startPercent + '%' }" />
       <div class="pointer-events-none absolute inset-y-0 right-0 bg-black/60" :style="{ width: 100 - endPercent + '%' }" />
+
+      <div
+        v-if="filmstripProgress < 100"
+        class="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center bg-black/50 text-xs font-medium tabular-nums text-white"
+      >
+        Loading preview {{ filmstripProgress }}%
+      </div>
 
       <div
         class="absolute inset-y-0 cursor-grab border-y-2 border-primary bg-primary/20 active:cursor-grabbing"
