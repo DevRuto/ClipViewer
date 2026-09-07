@@ -17,6 +17,7 @@ const VOLUME_STEP = 0.05
 const CONTROLS_HIDE_DELAY = 2500
 const PREVENT_DEFAULT_KEYS = new Set([' ', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown', 'home', 'end'])
 const DOUBLE_TAP_SEEK_STORAGE_KEY = 'clipviewer:double-tap-seek-enabled'
+const TAP_TO_PLAY_STORAGE_KEY = 'clipviewer:tap-outside-toggles-playback'
 
 // Touch gesture tuning: tapping the outer 30% of the player is a candidate for a double-tap
 // seek; a second tap in the same zone within the window seeks, otherwise it falls back to a
@@ -53,10 +54,16 @@ const refVideo = ref(null)
 const videoLoaded = ref(false)
 const controlsVisible = ref(true)
 const doubleTapSeekEnabled = ref(localStorage.getItem(DOUBLE_TAP_SEEK_STORAGE_KEY) !== 'false')
+const tapOutsideTogglesPlayback = ref(localStorage.getItem(TAP_TO_PLAY_STORAGE_KEY) !== 'false')
 
 function setDoubleTapSeekEnabled(enabled) {
   doubleTapSeekEnabled.value = enabled
   localStorage.setItem(DOUBLE_TAP_SEEK_STORAGE_KEY, String(enabled))
+}
+
+function setTapOutsideTogglesPlayback(enabled) {
+  tapOutsideTogglesPlayback.value = enabled
+  localStorage.setItem(TAP_TO_PLAY_STORAGE_KEY, String(enabled))
 }
 
 const isHLS = computed(() => props.src.toLowerCase().endsWith('.m3u8'))
@@ -154,12 +161,13 @@ function onVideoElementClick(event) {
 }
 
 // While playing, a tap that isn't a confirmed edge double-tap pauses (same as onVideoClick).
-// While paused, the big play button is the only thing that resumes playback - a tap anywhere
-// else on the player just toggles the controls overlay instead of also restarting playback.
-// Returns an undo matching whichever branch it took, for the same optimistic-apply-then-revert
-// reason as toggleSingleClick.
+// While paused, a tap anywhere else on the player resumes playback too when
+// tapOutsideTogglesPlayback is on (the default); when it's off, the big play button is the only
+// thing that resumes and an outside tap just toggles the controls overlay instead. Returns an
+// undo matching whichever branch it took, for the same optimistic-apply-then-revert reason as
+// toggleSingleClick.
 function resolveSingleTap() {
-  if (isPlaying.value) {
+  if (isPlaying.value || tapOutsideTogglesPlayback.value) {
     return toggleSingleClick()
   }
   const wasVisible = controlsVisible.value
@@ -448,7 +456,12 @@ function onKeydown(event) {
 
           <PlaybackRateMenu :rate="playbackRate" @update:rate="setPlaybackRate" />
 
-          <VideoSettingsMenu :double-tap-seek="doubleTapSeekEnabled" @update:double-tap-seek="setDoubleTapSeekEnabled" />
+          <VideoSettingsMenu
+            :double-tap-seek="doubleTapSeekEnabled"
+            :tap-outside-toggles-playback="tapOutsideTogglesPlayback"
+            @update:double-tap-seek="setDoubleTapSeekEnabled"
+            @update:tap-outside-toggles-playback="setTapOutsideTogglesPlayback"
+          />
 
           <button
             type="button"

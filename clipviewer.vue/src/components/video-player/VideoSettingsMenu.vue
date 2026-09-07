@@ -9,9 +9,13 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  tapOutsideTogglesPlayback: {
+    type: Boolean,
+    default: true,
+  },
 })
 
-const emit = defineEmits(['update:doubleTapSeek'])
+const emit = defineEmits(['update:doubleTapSeek', 'update:tapOutsideTogglesPlayback'])
 </script>
 
 <template>
@@ -25,6 +29,13 @@ const emit = defineEmits(['update:doubleTapSeek'])
       <label class="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-2 text-sm whitespace-nowrap select-none">
         <Switch :model-value="props.doubleTapSeek" @update:model-value="emit('update:doubleTapSeek', $event)" />
         <span>Double-tap to seek</span>
+      </label>
+      <label class="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-2 text-sm whitespace-nowrap select-none">
+        <Switch
+          :model-value="props.tapOutsideTogglesPlayback"
+          @update:model-value="emit('update:tapOutsideTogglesPlayback', $event)"
+        />
+        <span>Tap anywhere to play/pause</span>
       </label>
     </DropdownMenuContent>
   </DropdownMenu>
