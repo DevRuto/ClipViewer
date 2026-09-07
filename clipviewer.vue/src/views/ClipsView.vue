@@ -72,20 +72,22 @@ watch(
 <template>
   <div>
     <div class="container mx-auto px-4 py-8">
-      <h1 class="text-3xl font-bold mb-8">
-        {{ title }}
-      </h1>
+      <div class="flex items-center justify-between mb-8 gap-4">
+        <h1 class="text-3xl font-bold">
+          {{ title }}
+        </h1>
+        <Button
+          v-if="isAuthenticated && user.username.toLowerCase() === username?.toLowerCase()"
+          @click="router.push('/upload')"
+        >
+          <Plus class="size-4" />
+          Upload New Clip
+        </Button>
+      </div>
 
       <Card class="mb-6">
-        <CardHeader class="flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle class="text-xl">Video Library</CardTitle>
-          <Button
-            v-if="isAuthenticated && user.username.toLowerCase() === username?.toLowerCase()"
-            @click="router.push('/upload')"
-          >
-            <Plus class="size-4" />
-            Upload New Clip
-          </Button>
         </CardHeader>
         <CardContent>
           <div v-if="availableTags.length || tag" class="mb-4 flex flex-wrap items-center gap-2">
