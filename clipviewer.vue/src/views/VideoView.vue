@@ -283,7 +283,6 @@ async function refreshVideo() {
             :src="videoSource"
             :placeholder="video.thumbnail"
             :scrub-sprite="video.scrubSprite"
-            :chapters="video.chapters"
             @loaded="onVideoLoaded"
           />
           <div

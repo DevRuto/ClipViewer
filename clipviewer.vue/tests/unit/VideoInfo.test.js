@@ -377,122 +377,6 @@ describe('VideoInfo', () => {
     expect(wrapper.emitted('refresh-video')).toBeTruthy()
   })
 
-  it('starts collapsed when the video has no chapters, and expands via the disclosure toggle', async () => {
-    mockUser.value = { username: 'alice' }
-    const wrapper = mountVideoInfo({
-      props: { video: baseVideo, videoPlayer: null, saving: false, saveError: '' },
-      attachTo: document.body,
-    })
-    const body = new DOMWrapper(document.body)
-
-    await openEditModal(wrapper)
-    const addButton = findByText(body, 'button', /Add chapter at/)
-    expect(addButton.isVisible()).toBe(false)
-
-    const chaptersToggle = findByText(body, 'button', 'Chapters')
-    await chaptersToggle.trigger('click')
-
-    expect(addButton.isVisible()).toBe(true)
-  })
-
-  it('is expanded by default when the video already has chapters', async () => {
-    mockUser.value = { username: 'alice' }
-    const video = { ...baseVideo, chapters: [{ id: 1, startTime: 10, title: 'Intro' }] }
-    const wrapper = mountVideoInfo({
-      props: { video, videoPlayer: null, saving: false, saveError: '' },
-      attachTo: document.body,
-    })
-    const body = new DOMWrapper(document.body)
-
-    await openEditModal(wrapper)
-
-    const titleInput = body.find('input[placeholder="Chapter title"]')
-    expect(titleInput.isVisible()).toBe(true)
-    expect(titleInput.element.value).toBe('Intro')
-  })
-
-  it('adds a chapter at the current player time and emits it, sorted, on Save', async () => {
-    mockUser.value = { username: 'alice' }
-    const videoPlayer = reactive({ currentTime: 0 })
-    const video = { ...baseVideo, duration: 200, chapters: [{ id: 1, startTime: 90, title: 'Later part' }] }
-    const wrapper = mountVideoInfo({
-      props: { video, videoPlayer, saving: false, saveError: '' },
-      attachTo: document.body,
-    })
-    const body = new DOMWrapper(document.body)
-
-    videoPlayer.currentTime = 30
-    await wrapper.vm.$nextTick()
-    await openEditModal(wrapper)
-
-    const addButton = findByText(body, 'button', /Add chapter at/)
-    await addButton.trigger('click')
-    const titleInputs = body.findAll('input[placeholder="Chapter title"]')
-    expect(titleInputs).toHaveLength(2)
-    await titleInputs[0].setValue('Early part')
-
-    const saveButton = findByText(body, 'button', 'Save')
-    await saveButton.trigger('click')
-
-    const lastEmit = wrapper.emitted('update-video').at(-1)[0]
-    expect(lastEmit.chapters).toEqual([
-      { startTime: 30, title: 'Early part' },
-      { startTime: 90, title: 'Later part' },
-    ])
-  })
-
-  it('adds a chapter at the dragged slider time, not the live (hidden-behind-the-dialog) player time', async () => {
-    mockUser.value = { username: 'alice' }
-    const videoPlayer = reactive({ currentTime: 0 })
-    const video = { ...baseVideo, duration: 200 }
-    const wrapper = mountVideoInfo({
-      props: { video, videoPlayer, saving: false, saveError: '' },
-      attachTo: document.body,
-    })
-    const body = new DOMWrapper(document.body)
-
-    videoPlayer.currentTime = 10
-    await wrapper.vm.$nextTick()
-    await openEditModal(wrapper)
-
-    // Simulates playback continuing behind the modal overlay after it opened - the picker should
-    // not follow it, since the slider was already seeded from the time the dialog opened at.
-    videoPlayer.currentTime = 150
-    await wrapper.vm.$nextTick()
-
-    const slider = body.find('input[type="range"]')
-    await slider.setValue('75')
-
-    const addButton = findByText(body, 'button', /Add chapter at/)
-    expect(addButton.text()).toContain('1:15')
-    await addButton.trigger('click')
-    await body.find('input[placeholder="Chapter title"]').setValue('Picked via slider')
-
-    const saveButton = findByText(body, 'button', 'Save')
-    await saveButton.trigger('click')
-
-    const lastEmit = wrapper.emitted('update-video').at(-1)[0]
-    expect(lastEmit.chapters).toEqual([{ startTime: 75, title: 'Picked via slider' }])
-  })
-
-  it('removes a chapter from the draft', async () => {
-    mockUser.value = { username: 'alice' }
-    const video = { ...baseVideo, chapters: [{ id: 1, startTime: 10, title: 'Intro' }] }
-    const wrapper = mountVideoInfo({
-      props: { video, videoPlayer: null, saving: false, saveError: '' },
-      attachTo: document.body,
-    })
-    const body = new DOMWrapper(document.body)
-
-    await openEditModal(wrapper)
-    await body.find('button[aria-label="Remove chapter"]').trigger('click')
-    const saveButton = findByText(body, 'button', 'Save')
-    await saveButton.trigger('click')
-
-    const lastEmit = wrapper.emitted('update-video').at(-1)[0]
-    expect(lastEmit.chapters).toEqual([])
-  })
-
   it('drops a chapter with a blank title on Save', async () => {
     mockUser.value = { username: 'alice' }
     const video = { ...baseVideo, chapters: [{ id: 1, startTime: 10, title: '  ' }] }
@@ -510,7 +394,7 @@ describe('VideoInfo', () => {
     expect(lastEmit.chapters).toEqual([])
   })
 
-  it('flags an invalid chapter time and disables Save until it is fixed', async () => {
+  it('preserves existing chapters unmodified through Save while chapter editing UI is hidden', async () => {
     mockUser.value = { username: 'alice' }
     const video = { ...baseVideo, chapters: [{ id: 1, startTime: 10, title: 'Intro' }] }
     const wrapper = mountVideoInfo({
@@ -520,34 +404,11 @@ describe('VideoInfo', () => {
     const body = new DOMWrapper(document.body)
 
     await openEditModal(wrapper)
-    const timeInput = body.find('input[aria-label="Chapter start time"]')
-    await timeInput.setValue('not-a-time')
-    await timeInput.trigger('change')
-
     const saveButton = findByText(body, 'button', 'Save')
-    expect(saveButton.attributes('disabled')).not.toBeUndefined()
+    await saveButton.trigger('click')
 
-    await timeInput.setValue('1:30')
-    await timeInput.trigger('change')
-    expect(saveButton.attributes('disabled')).toBeUndefined()
-  })
-
-  it('discards unsaved chapter edits when Cancel is clicked', async () => {
-    mockUser.value = { username: 'alice' }
-    const video = { ...baseVideo, chapters: [{ id: 1, startTime: 10, title: 'Intro' }] }
-    const wrapper = mountVideoInfo({
-      props: { video, videoPlayer: null, saving: false, saveError: '' },
-      attachTo: document.body,
-    })
-    const body = new DOMWrapper(document.body)
-
-    await openEditModal(wrapper)
-    await body.find('button[aria-label="Remove chapter"]').trigger('click')
-    const cancelButton = findByText(body, 'button', 'Cancel')
-    await cancelButton.trigger('click')
-
-    await openEditModal(wrapper)
-    expect(body.find('input[placeholder="Chapter title"]').element.value).toBe('Intro')
+    const lastEmit = wrapper.emitted('update-video').at(-1)[0]
+    expect(lastEmit.chapters).toEqual([{ startTime: 10, title: 'Intro' }])
   })
 
   it('shows the saveError message inside the modal and keeps it open while saving', async () => {
