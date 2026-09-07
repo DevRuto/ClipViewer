@@ -1,9 +1,12 @@
 <script setup>
 import { formatDuration } from '@/composables/useDuration.js'
 import { useAuthorColor } from '@/composables/useAuthorColor.js'
+import { useTagColor } from '@/composables/useTagColor.js'
+import { Tag as TagIcon } from '@lucide/vue'
 
 const { video } = defineProps(['video'])
 const { stringToColor, getContrastColor } = useAuthorColor()
+const { tagColorClasses } = useTagColor()
 
 const authorColor = stringToColor(video.author)
 const textColor = getContrastColor(authorColor)
@@ -32,6 +35,17 @@ const textColor = getContrastColor(authorColor)
       <div class="text-xs px-2 py-1 rounded font-medium" :style="{ backgroundColor: authorColor, color: textColor }">
         {{ video.author }}
       </div>
+    </div>
+    <div v-if="video.tags?.length" class="flex flex-wrap gap-1 mt-2">
+      <span
+        v-for="t in video.tags"
+        :key="t"
+        :class="tagColorClasses(t)"
+        class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
+      >
+        <TagIcon class="size-3" />
+        {{ t }}
+      </span>
     </div>
   </div>
 </template>
