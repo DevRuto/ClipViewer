@@ -48,7 +48,20 @@ function updateIsMobile(event) {
   isMobile.value = event.matches
 }
 
-const effectivePlayerWidth = computed(() => (isMobile.value ? null : playerWidth.value))
+// Tracks the browser window's width so a player size chosen on a wide screen shrinks live if the
+// window is later made narrower, instead of staying stuck at its stored pixel width until the next
+// manual drag (the stored playerWidth itself is left untouched, so it's restored if the window
+// widens again).
+const viewportWidth = ref(window.innerWidth)
+
+function updateViewportWidth() {
+  viewportWidth.value = window.innerWidth
+}
+
+const effectivePlayerWidth = computed(() => {
+  if (isMobile.value || !playerWidth.value) return null
+  return Math.min(playerWidth.value, viewportWidth.value - PAGE_EDGE_MARGIN)
+})
 
 function readStoredPlayerWidth() {
   const raw = Number(localStorage.getItem(PLAYER_WIDTH_STORAGE_KEY))
@@ -162,6 +175,10 @@ onMounted(() => {
   mobileMediaQuery.addEventListener('change', updateIsMobile)
 })
 
+onMounted(() => {
+  window.addEventListener('resize', updateViewportWidth)
+})
+
 onMounted(loadVideo)
 
 // Vue Router reuses this component instance when navigating between two /clips/:videoId routes,
@@ -179,6 +196,7 @@ onUnmounted(() => {
     pollingInterval.value = null
   }
   mobileMediaQuery?.removeEventListener('change', updateIsMobile)
+  window.removeEventListener('resize', updateViewportWidth)
 })
 
 function onVideoLoaded() {
